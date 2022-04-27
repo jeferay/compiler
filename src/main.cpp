@@ -33,13 +33,14 @@ int main(int argc, const char *argv[]) {
   assert(!ret);
 
   // 输出解析得到的 AST, 其实就是个字符串,这里改成了利用dump输出对应结构
-  ast->Dump();
-  cout << endl;
+  // ast->Dump();
+  // cout << endl;
 
   // 输出解析得到的 Koopa IR
+  freopen(output, "w", stdout);
   ast->Dump_IR();
   cout << endl;
-  
+
   return 0;
 }
 
