@@ -9,6 +9,7 @@ class BaseAST {
  public:
   virtual ~BaseAST() = default;
   virtual void  Dump() const = 0;
+  virtual void  Dump_IR() const = 0;
 };
 
 // CompUnit 是 BaseAST
@@ -21,6 +22,10 @@ class CompUnitAST : public BaseAST {
     std::cout << "CompUnitAST { ";
     func_def->Dump();
     std::cout << " }";
+  }
+
+  void Dump_IR() const override{
+    func_def->Dump_IR();
   }
 
 };
@@ -39,6 +44,13 @@ class FuncDefAST : public BaseAST {
     block->Dump();
     std::cout << " }";
   }
+
+  void Dump_IR() const override
+  {
+    std::cout << "fun "<<"@"<<ident<<"(): ";
+    func_type->Dump_IR();
+    block->Dump_IR();
+  }
 };
 
 // FunType 也是 BaseAST
@@ -48,12 +60,20 @@ class FuncTypeAST :public BaseAST
   std::string type;
   FuncTypeAST(string _type):type(_type){}
   FuncTypeAST(){} // 也定义一个空的构造函数
+
   void Dump() const override
   {
     std::cout << "FuncTypeAST { ";
     std::cout << type;
     std::cout << " }";
   }
+
+  void Dump_IR() const override
+  {
+    if (type=="int")
+      std::cout << "i32 ";
+  }
+
 };
 
 // BlockAST 也是 BaseAST
@@ -66,6 +86,13 @@ class BlockAST: public BaseAST
     std::cout << "BlockAST { ";
     stmt->Dump();
     std::cout << " }";
+  }
+
+  void Dump_IR() const override
+  {
+    std::cout << "{"<<endl;
+    stmt->Dump_IR();
+    std::cout << "}";
   }
 };
 
@@ -82,6 +109,24 @@ class StmtAST: public BaseAST{
     std::cout << number;
     std::cout << " }";
   }
+
+  void Dump_IR() const override
+  {
+    cout << "\%entry:\n"<<"  ";
+    cout << "ret ";
+    cout << to_string(number)<<endl;
+  }
 };
 
+//CompUnitAST { FuncDefAST { FuncTypeAST { int }, main, BlockAST { StmtAST { 0 } } } }
+
+// fun @main(): i32 {  // main 函数的定义
+// %entry:             // 入口基本块
+//   ret 0             // return 0
+// }
+
+// fun @main(): i32 {
+// %entry:
+//   ret 0
+// }
 
