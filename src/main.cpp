@@ -1,9 +1,12 @@
 #include <cassert>
+#include <fstream>
 #include <cstdio>
 #include <iostream>
 #include <memory>
 #include <string>
+#include <cstring>
 #include "ast.h"
+#include "KoopaIR.h"
 
 using namespace std;
 
@@ -22,6 +25,7 @@ int main(int argc, const char *argv[]) {
   auto mode = argv[1];
   auto input = argv[2];
   auto output = argv[4];
+  
 
   // 打开输入文件, 并且指定 lexer 在解析的时候读取这个文件
   yyin = fopen(input, "r");
@@ -33,14 +37,24 @@ int main(int argc, const char *argv[]) {
   assert(!ret);
 
   // 输出解析得到的 AST, 其实就是个字符串,这里改成了利用dump输出对应结构
-  // ast->Dump();
-  // cout << endl;
+  char AST[1024]={0};
+  ast->Dump(AST);
 
   // 输出解析得到的 Koopa IR
-  freopen(output, "w", stdout);
-  ast->Dump_IR();
-  cout << endl;
+  
+  char IR[1024]={0};
+  ast->Dump_IR(IR);
 
+  char RiscV[1024] = {0};
+  KoopaIR_2_RiscV(IR,RiscV);
+  
+  freopen(output, "w", stdout);
+  // std::cout<<mode<<endl;
+  if(!strcmp(mode,"-koopa"))
+    std::cout<<IR<<endl;
+  else if (!strcmp(mode,"-riscv"))
+    std::cout<<RiscV<<endl;
+  fclose(stdout);
   return 0;
 }
 
