@@ -87,7 +87,7 @@ typedef struct IR_Ins_Value
     else return "not implied yet";
   }
 
-  ostream & operator<<(ostream &out, IR_Ins_Value &A){
+  friend ostream & operator<<(ostream &out, IR_Ins_Value &A){
     out <<"IRV type "<<A.return_type <<" IRV value "<<A.return_value <<"\n";
     return out;
   }
@@ -507,6 +507,7 @@ class MulExpAST: public BaseAST
     if (IRV.return_type!=-1)return;
     if (flag==0){
       unaryexp->Set_IRV(start_point);
+      IRV = unaryexp->IRV;
     }
     else if(flag==1){
       mulexp->Set_IRV(start_point);
