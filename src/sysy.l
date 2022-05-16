@@ -29,6 +29,7 @@ Decimal       [1-9][0-9]*
 Octal         0[0-7]*
 Hexadecimal   0[xX][0-9a-fA-F]+
 
+
 %%
 
 {WhiteSpace}    { /* 忽略, 不做任何操作 */ }
@@ -37,6 +38,22 @@ Hexadecimal   0[xX][0-9a-fA-F]+
 
 "int"           { return INT; }
 "return"        { return RETURN; }
+"+"             { yylval.str_val = new string(yytext); return PLUS; }
+"-"             { yylval.str_val = new string(yytext); return MINUS; }
+"!"             { yylval.str_val = new string(yytext); return SEQZ; }
+"*"             { yylval.str_val = new string(yytext); return MUL; }
+"/"             { yylval.str_val = new string(yytext); return DIV; }
+"%"             { yylval.str_val = new string(yytext); return MOD; }
+"<"             { yylval.str_val = new string(yytext); return LE; }
+">"             { yylval.str_val = new string(yytext); return GE; }
+"<="            { yylval.str_val = new string(yytext); return LEQ; }
+">="            { yylval.str_val = new string(yytext); return GEQ; }
+"=="            { yylval.str_val = new string(yytext); return EQ; }
+"!="            { yylval.str_val = new string(yytext); return NEQ; }
+
+
+
+
 
 {Identifier}    { yylval.str_val = new string(yytext); return IDENT; }
 

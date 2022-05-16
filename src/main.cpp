@@ -37,24 +37,27 @@ int main(int argc, const char *argv[]) {
   assert(!ret);
 
   // 输出解析得到的 AST, 其实就是个字符串,这里改成了利用dump输出对应结构
-  char AST[1024]={0};
-  ast->Dump(AST);
+  // char AST[1024]={0};
+  // ast->Dump(AST);
+  // cout<<AST<<endl;
 
-  // 输出解析得到的 Koopa IR
+  // // 输出解析得到的 Koopa IR
   
   char IR[1024]={0};
+  ast->Set_IRV(0);//在外部提前set好 start point =0
   ast->Dump_IR(IR);
+  cout<<IR<<endl;
 
   char RiscV[1024] = {0};
-  KoopaIR_2_RiscV(IR,RiscV);
+  // KoopaIR_2_RiscV(IR,RiscV);
   
-  freopen(output, "w", stdout);
-  // std::cout<<mode<<endl;
-  if(!strcmp(mode,"-koopa"))
-    std::cout<<IR<<endl;
-  else if (!strcmp(mode,"-riscv"))
-    std::cout<<RiscV<<endl;
-  fclose(stdout);
+  // freopen(output, "w", stdout);
+  // // std::cout<<mode<<endl;
+  // if(!strcmp(mode,"-koopa"))
+  //   std::cout<<IR<<endl;
+  // else if (!strcmp(mode,"-riscv"))
+  //   std::cout<<RiscV<<endl;
+  // fclose(stdout);
   return 0;
 }
 

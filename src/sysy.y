@@ -42,12 +42,13 @@ using namespace std;
 
 // lexer 返回的所有 token 种类的声明
 // 注意 IDENT 和 INT_CONST 会返回 token 的值, 分别对应 str_val 和 int_val
-%token INT RETURN
+// 不指定类型, 不返回对应token值
+%token INT RETURN PLUS MINUS SEQZ MUL DIV MOD LE GE LEQ GEQ EQ NEQ
 %token <str_val> IDENT
 %token <int_val> INT_CONST
 
 // 非终结符的类型定义 所有的非终结符都改成ast类型
-%type <ast_val> FuncDef FuncType Block Stmt
+%type <ast_val> FuncDef FuncType Block Stmt Exp PrimaryExp UnaryExp UnaryOp AddExp MulExp AddOp MulOp
 %type <int_val> Number //number我们这里是定义为int类型的
 
 %%
@@ -57,7 +58,8 @@ using namespace std;
 // 之前我们定义了 FuncDef 会返回一个 str_val, 也就是字符串指针
 // 而 parser 一旦解析完 CompUnit, 就说明所有的 token 都被解析了, 即解析结束了
 // 此时我们应该把 FuncDef 返回的结果收集起来, 作为 AST 传给调用 parser 的函数
-// $1 指代规则里第一个符号的返回值, 也就是 FuncDef 的返回值
+// $1 指代规则里第一个符号的返回值, 也就是 FuncDef 的返回值 
+
 CompUnit
   : FuncDef 
   {
@@ -106,11 +108,77 @@ Block
   ;
 
 Stmt
-  : RETURN Number ';' 
+  : RETURN Exp ';' 
   {
-    int number = int($2);
-    auto stmt = new StmtAST(number);
+    auto stmt = new StmtAST();
+    stmt->flag = 0; // 表示return一个exp这种的分解方式
+    stmt->exp = unique_ptr<BaseAST>($2);
     $$ = stmt;
+  }
+  ;
+
+Exp 
+  : AddExp
+  {
+    auto exp = new ExpAST();
+    exp->addexp = unique_ptr<BaseAST>($1);
+    exp->flag = 0; // 表示按照第一种方式分解
+    $$ = exp;
+  }
+  ;
+
+MulExp 
+  : UnaryExp 
+  {
+    auto mulexp = new MulExpAST();
+    mulexp->unaryexp = unique_ptr<BaseAST>($1);
+    mulexp->flag = 0; // 表示按照第一种方式分解
+    $$ = mulexp;
+  }
+  | MulExp MulOp UnaryExp
+  {
+    auto mulexp = new MulExpAST();
+    mulexp->mulexp = unique_ptr<BaseAST>($1);
+    mulexp->mulop = unique_ptr<BaseAST>($2);
+    mulexp->unaryexp = unique_ptr<BaseAST>($3);
+    mulexp->flag = 1; // 表示按照第二种方式分解
+    $$ = mulexp;
+  }
+  ;
+AddExp
+  : MulExp 
+  {
+    auto addexp = new AddExpAST();
+    addexp->mulexp = unique_ptr<BaseAST>($1);
+    addexp->flag =0;
+    $$ = addexp;
+  }
+  | AddExp AddOp MulExp
+  {
+    auto addexp = new AddExpAST();
+    addexp->addexp = unique_ptr<BaseAST>($1);
+    addexp->addop = unique_ptr<BaseAST>($2);
+    addexp->mulexp = unique_ptr<BaseAST>($3);
+    addexp->flag = 1;
+    $$ = addexp;
+  }
+  ;
+
+PrimaryExp
+  : '(' Exp ')'
+  {
+    auto primaryexp = new PrimaryExpAST();
+    primaryexp->flag = 0;
+    primaryexp->exp = unique_ptr<BaseAST>($2);
+    $$ = primaryexp;
+
+  }
+  | Number
+  {
+    auto primaryexp = new PrimaryExpAST();
+    primaryexp->flag = 1;
+    primaryexp->number = int($1);
+    $$ = primaryexp;
   }
   ;
 
@@ -120,6 +188,76 @@ Number
     $$ = int($1);
   }
   ;
+
+UnaryExp
+  : PrimaryExp
+  {
+    auto unaryexp = new UnaryExpAST();
+    unaryexp->flag = 0;
+    unaryexp->primaryexp = unique_ptr<BaseAST>($1);
+    $$ = unaryexp;
+
+  }
+  | UnaryOp UnaryExp
+  {
+    auto unaryexp = new UnaryExpAST();
+    unaryexp->flag = 1;
+    unaryexp->unaryop = unique_ptr<BaseAST>($1);
+    unaryexp->unaryexp = unique_ptr<BaseAST>($2);
+    $$ = unaryexp;
+  }
+  ;
+
+UnaryOp
+  : PLUS{
+    auto unaryop = new UnaryOpAST();
+    unaryop->flag=0;
+    $$ = unaryop;
+  }
+  | MINUS{
+    auto unaryop = new UnaryOpAST();
+    unaryop->flag=1;
+    $$ = unaryop;
+  }
+  | SEQZ{
+    auto unaryop = new UnaryOpAST();
+    unaryop->flag=2;
+    $$ = unaryop;
+  }
+  ;
+
+AddOp
+  : PLUS{
+    auto addop = new AddOpAST();
+    addop->flag = 0;
+    $$ = addop;
+  }
+  | MINUS{
+    auto addop = new AddOpAST();
+    addop->flag = 1;
+    $$ = addop;
+  }
+  ;
+
+MulOp
+  : MUL{
+    auto mulop = new MulOpAST();
+    mulop->flag = 0;
+    $$ = mulop;
+  }
+  | DIV{
+    auto mulop = new MulOpAST();
+    mulop->flag = 1;
+    $$ = mulop;
+  }
+  | MOD{
+    auto mulop = new MulOpAST();
+    mulop->flag = 2;
+    $$ = mulop;
+  }
+  ;
+
+
 
 %%
 

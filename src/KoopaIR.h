@@ -11,6 +11,7 @@ using namespace std;
 void Visit_slice(const koopa_raw_slice_t &slice, char * RiscV);
 void Visit_ins_ret(const koopa_raw_return_t & ret, char * RiscV);
 void Visit_ins_integer(const koopa_raw_integer_t &integer, char * RiscV);
+void Visit_ins_binary(const koopa_raw_binary_t &binary, char * RiscV);
 void Visit_ins(const koopa_raw_value_t &value, char * RiscV);
 void Visit_block(const koopa_raw_basic_block_t &bb, char * RiscV);
 void Visit_func(const koopa_raw_function_t &func, char * RiscV);
@@ -19,34 +20,63 @@ void Visit_Program(const koopa_raw_program_t &program, char * RiscV);
 void Str_2_KoopaIR(const char * IR, char * RiscV);
 
 
-//CompUnitAST { FuncDefAST { FuncTypeAST { int }, main, BlockAST { StmtAST { 0 } } } }
+
 
 
 // int main() {
 //   // 阿卡林
-//   return 0;
+//   return +(- -!6);
 // }
-// 复制错误已复制
-// 编译成如下的 Koopa IR 程序:
 
+// AST 到目前为止生成了AST
+// CompUnitAST { 
+//   FuncDefAST {
+//     FuncTypeAST { int },
+//     main,
+//     BlockAST { 
+//       StmtAST {
+//         ExpAST {
+//           UnaryExpAST{
+//             UnaryOpAST{ + },
+//             UnaryExpAST{
+//               PrimaryExpAST{
+//                 ExpAST {
+//                   UnaryExpAST{
+//                     UnaryOpAST{ - },
+//                     UnaryExpAST{
+//                       UnaryOpAST{ - },
+//                       UnaryExpAST{
+//                         UnaryOpAST{ ! },
+//                         UnaryExpAST{
+//                           PrimaryExpAST{
+//                             6}}}}}}}}}} } } }}
+
+
+// 编译成如下的 Koopa IR 程序:
 // fun @main(): i32 {
 // %entry:
-//   ret 0
+//   %0 = eq 6, 0
+//   %1 = sub 0, %0
+//   %2 = sub 0, %1
+//   ret %2
 // }
-// 复制错误已复制
-// 我们的目标是, 进一步把它编译为:
 
+// 我们的目标是, 进一步把它编译为:
 //   .text
 //   .globl main
 // main:
-//   li a0, 0
+//   # 实现 eq 6, 0 的操作, 并把结果存入 t0
+//   li    t0, 6
+//   xor   t0, t0, x0
+//   seqz  t0, t0
+//   # 减法
+//   sub   t1, x0, t0
+//   # 减法
+//   sub   t2, x0, t1
+//   # 设置返回值并返回
+//   mv    a0, t2
 //   ret
 
-//   .text
-//   .globl main
-// main:
-//   li a0, 0
-//    ret
 
 // 访问return指令
 void Visit_ins_ret(const koopa_raw_return_t & ret, char * RiscV)
@@ -56,14 +86,35 @@ void Visit_ins_ret(const koopa_raw_return_t & ret, char * RiscV)
   {
     koopa_raw_value_kind_t kind = value->kind;
     int32_t ret_data = kind.data.integer.value;
-    // std::cout<<"  li a0, "<<ret_data<<"\n";
     strcat(RiscV, "  li a0, ");
     strcat(RiscV, const_cast<char *>(to_string(ret_data).c_str()));
     strcat(RiscV, "\n");
     
   }
-  // std::cout<<"  ret\n";
   strcat(RiscV, "  ret\n");
+}
+
+void Visit_ins_binary(const koopa_raw_binary_t &binary, char * RiscV)
+{
+  cout<<"visit_ins_binary in\n";
+  koopa_raw_value_t lhs = binary.lhs; // *koopa_raw_value_data指针类型
+  koopa_raw_value_t rhs = binary.rhs;
+  // cout<<binary.op<<" "<<(lhs->kind).data.integer.value<<" "<<(lhs->kind).tag<<" "<<(rhs->kind).data.jump.value<<" "<<(rhs->kind).tag<<endl;
+  // 按照operator分类
+  switch (binary.op)
+  {
+  case KOOPA_RBO_EQ: 
+    
+    break;
+  
+  case KOOPA_RBO_SUB:
+    
+    break;
+  
+  default:
+    break;
+  }
+
 }
 
 void Visit_ins_integer(const koopa_raw_integer_t &integer, char * RiscV)
@@ -77,7 +128,7 @@ void Visit_ins(const koopa_raw_value_t &value, char * RiscV)
 {
   // 根据指令类型判断后续需要如何访问, 这里得到的kind是一个tag和data的struct
   const auto &kind = value->kind;
-  switch (kind.tag) 
+  switch (kind.tag)
   {
     case KOOPA_RVT_RETURN:
       // 访问 return 指令
@@ -86,6 +137,10 @@ void Visit_ins(const koopa_raw_value_t &value, char * RiscV)
     case KOOPA_RVT_INTEGER:
       // 访问 integer 指令
       Visit_ins_integer(kind.data.integer,RiscV);
+      break;
+    case KOOPA_RVT_BINARY:
+      Visit_ins_binary(kind.data.binary,RiscV);
+      
       break;
     default:
       // 其他类型暂时遇不到

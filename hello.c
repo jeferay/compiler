@@ -1,5 +1,7 @@
 /* This is a comment. */
 int main() {
-  // 忽略我的存在
-  return 0;
+  return --1;  // 看起来像个颜文字
 }
+
+
+
