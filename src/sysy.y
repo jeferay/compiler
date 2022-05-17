@@ -43,12 +43,12 @@ using namespace std;
 // lexer 返回的所有 token 种类的声明
 // 注意 IDENT 和 INT_CONST 会返回 token 的值, 分别对应 str_val 和 int_val
 // 不指定类型, 不返回对应token值
-%token INT RETURN PLUS MINUS SEQZ MUL DIV MOD LE GE LEQ GEQ EQ NEQ
+%token INT RETURN PLUS MINUS SEQZ MUL DIV MOD LT GT LE GE EQ NEQ LOR LAND
 %token <str_val> IDENT
 %token <int_val> INT_CONST
 
 // 非终结符的类型定义 所有的非终结符都改成ast类型
-%type <ast_val> FuncDef FuncType Block Stmt Exp PrimaryExp UnaryExp UnaryOp AddExp MulExp AddOp MulOp
+%type <ast_val> FuncDef FuncType Block Stmt Exp PrimaryExp UnaryExp UnaryOp AddExp MulExp AddOp MulOp LOrExp LAndExp EqExp RelExp EqOp RelOp
 %type <int_val> Number //number我们这里是定义为int类型的
 
 %%
@@ -66,8 +66,7 @@ CompUnit
     auto comp_unit = make_unique<CompUnitAST>(); // 自动声明为一个compunitast的智能指针并且创建
     comp_unit->func_def = unique_ptr<BaseAST>($1);
     ast = move(comp_unit);
-  }
-  ;
+  };
 
 
 // FuncDef ::= FuncType IDENT '(' ')' Block;
@@ -87,16 +86,14 @@ FuncDef
     ast->ident = *unique_ptr<string>($2);
     ast->block = unique_ptr<BaseAST>($5);
     $$ = ast;
-  }
-  ;
+  };
 
 // 同上, 不再解释
 FuncType
   : INT 
   {
     $$  = new FuncTypeAST("int");
-  }
-  ;
+  };
 
 Block
   : '{' Stmt '}' 
@@ -104,8 +101,7 @@ Block
     auto block = new BlockAST();
     block->stmt = unique_ptr<BaseAST>($2);
     $$ = block;
-  }
-  ;
+  };
 
 Stmt
   : RETURN Exp ';' 
@@ -114,18 +110,105 @@ Stmt
     stmt->flag = 0; // 表示return一个exp这种的分解方式
     stmt->exp = unique_ptr<BaseAST>($2);
     $$ = stmt;
-  }
-  ;
+  };
 
 Exp 
-  : AddExp
+  : LOrExp
   {
     auto exp = new ExpAST();
-    exp->addexp = unique_ptr<BaseAST>($1);
+    exp->lorexp = unique_ptr<BaseAST>($1);
     exp->flag = 0; // 表示按照第一种方式分解
     $$ = exp;
+  };
+
+LOrExp
+  : LAndExp
+  {
+    auto lorexp = new LOrExpAST();
+    lorexp->landexp = unique_ptr<BaseAST>($1);
+    lorexp->flag = 0;
+    $$ = lorexp;
   }
-  ;
+  | LOrExp LOR LAndExp
+  {
+    auto lorexp = new LOrExpAST();
+    lorexp->lorexp = unique_ptr<BaseAST>($1);
+    lorexp->landexp = unique_ptr<BaseAST>($3);
+    lorexp->flag = 1;
+    $$ = lorexp;
+  };
+
+LAndExp
+  : EqExp
+  {
+    auto landexp = new LAndExpAST();
+    landexp->eqexp = unique_ptr<BaseAST>($1);
+    landexp->flag = 0;
+    $$ = landexp;
+  }
+  | LAndExp LAND EqExp
+  {
+    auto landexp = new LAndExpAST();
+    landexp->landexp = unique_ptr<BaseAST>($1);
+    landexp->eqexp = unique_ptr<BaseAST>($3);
+    landexp->flag = 1;
+    $$ = landexp;
+  };
+
+EqExp
+  : RelExp
+  {
+    auto eqexp = new EqExpAST();
+    eqexp->relexp = unique_ptr<BaseAST>($1);
+    eqexp->flag = 0;
+    $$ = eqexp;
+  }
+  | EqExp EqOp RelExp
+  {
+    auto eqexp = new EqExpAST();
+    eqexp->eqexp = unique_ptr<BaseAST>($1);
+    eqexp->eqop = unique_ptr<BaseAST>($2);
+    eqexp->relexp = unique_ptr<BaseAST>($3);
+    eqexp->flag = 1;
+    $$ = eqexp;
+  };
+
+RelExp 
+  : AddExp
+  {
+    auto relexp = new RelExpAST();
+    relexp->addexp = unique_ptr<BaseAST>($1);
+    relexp->flag = 0;
+    $$ = relexp;
+  }
+  | RelExp RelOp AddExp
+  {
+    auto relexp = new RelExpAST();
+    relexp->relexp = unique_ptr<BaseAST>($1);
+    relexp->relop = unique_ptr<BaseAST>($2);
+    relexp->addexp = unique_ptr<BaseAST>($3);
+    relexp->flag = 1;
+    $$ = relexp;
+  };
+
+AddExp
+  : MulExp 
+  {
+    auto addexp = new AddExpAST();
+    addexp->mulexp = unique_ptr<BaseAST>($1);
+    addexp->flag =0;
+    $$ = addexp;
+  }
+  | AddExp AddOp MulExp
+  {
+    auto addexp = new AddExpAST();
+    addexp->addexp = unique_ptr<BaseAST>($1);
+    addexp->addop = unique_ptr<BaseAST>($2);
+    addexp->mulexp = unique_ptr<BaseAST>($3);
+    addexp->flag = 1;
+    $$ = addexp;
+  };
+
 
 MulExp 
   : UnaryExp 
@@ -143,26 +226,8 @@ MulExp
     mulexp->unaryexp = unique_ptr<BaseAST>($3);
     mulexp->flag = 1; // 表示按照第二种方式分解
     $$ = mulexp;
-  }
-  ;
-AddExp
-  : MulExp 
-  {
-    auto addexp = new AddExpAST();
-    addexp->mulexp = unique_ptr<BaseAST>($1);
-    addexp->flag =0;
-    $$ = addexp;
-  }
-  | AddExp AddOp MulExp
-  {
-    auto addexp = new AddExpAST();
-    addexp->addexp = unique_ptr<BaseAST>($1);
-    addexp->addop = unique_ptr<BaseAST>($2);
-    addexp->mulexp = unique_ptr<BaseAST>($3);
-    addexp->flag = 1;
-    $$ = addexp;
-  }
-  ;
+  };
+
 
 PrimaryExp
   : '(' Exp ')'
@@ -179,15 +244,13 @@ PrimaryExp
     primaryexp->flag = 1;
     primaryexp->number = int($1);
     $$ = primaryexp;
-  }
-  ;
+  };
 
 Number
   : INT_CONST 
   {
     $$ = int($1);
-  }
-  ;
+  };
 
 UnaryExp
   : PrimaryExp
@@ -196,7 +259,6 @@ UnaryExp
     unaryexp->flag = 0;
     unaryexp->primaryexp = unique_ptr<BaseAST>($1);
     $$ = unaryexp;
-
   }
   | UnaryOp UnaryExp
   {
@@ -205,8 +267,7 @@ UnaryExp
     unaryexp->unaryop = unique_ptr<BaseAST>($1);
     unaryexp->unaryexp = unique_ptr<BaseAST>($2);
     $$ = unaryexp;
-  }
-  ;
+  };
 
 UnaryOp
   : PLUS{
@@ -223,8 +284,7 @@ UnaryOp
     auto unaryop = new UnaryOpAST();
     unaryop->flag=2;
     $$ = unaryop;
-  }
-  ;
+  };
 
 AddOp
   : PLUS{
@@ -236,8 +296,7 @@ AddOp
     auto addop = new AddOpAST();
     addop->flag = 1;
     $$ = addop;
-  }
-  ;
+  };
 
 MulOp
   : MUL{
@@ -254,8 +313,42 @@ MulOp
     auto mulop = new MulOpAST();
     mulop->flag = 2;
     $$ = mulop;
+  };
+
+EqOp
+  : EQ{
+    auto eqop = new EqOpAST();
+    eqop->flag = 0;
+    $$ = eqop;
   }
-  ;
+  | NEQ{
+    auto eqop = new EqOpAST();
+    eqop->flag = 1;
+    $$ = eqop;
+  };
+
+RelOp
+  : LT{
+    auto relop = new RelOpAST();
+    relop->flag = 0;
+    $$ = relop;
+  }
+  | GT{
+    auto relop = new RelOpAST();
+    relop->flag = 1;
+    $$ = relop;
+  }
+  | LE{
+    auto relop = new RelOpAST();
+    relop->flag = 2;
+    $$ = relop;
+  }
+  | GE{
+    auto relop = new RelOpAST();
+    relop->flag = 3;
+    $$ = relop;
+  };
+
 
 
 

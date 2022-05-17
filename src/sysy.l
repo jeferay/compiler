@@ -44,12 +44,14 @@ Hexadecimal   0[xX][0-9a-fA-F]+
 "*"             { yylval.str_val = new string(yytext); return MUL; }
 "/"             { yylval.str_val = new string(yytext); return DIV; }
 "%"             { yylval.str_val = new string(yytext); return MOD; }
-"<"             { yylval.str_val = new string(yytext); return LE; }
-">"             { yylval.str_val = new string(yytext); return GE; }
-"<="            { yylval.str_val = new string(yytext); return LEQ; }
-">="            { yylval.str_val = new string(yytext); return GEQ; }
+"<"             { yylval.str_val = new string(yytext); return LT; }
+">"             { yylval.str_val = new string(yytext); return GT; }
+"<="            { yylval.str_val = new string(yytext); return LE; }
+">="            { yylval.str_val = new string(yytext); return GE; }
 "=="            { yylval.str_val = new string(yytext); return EQ; }
 "!="            { yylval.str_val = new string(yytext); return NEQ; }
+"||"            { yylval.str_val = new string(yytext); return LOR; }
+"&&"            { yylval.str_val = new string(yytext); return LAND; }
 
 
 

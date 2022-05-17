@@ -263,17 +263,17 @@ class StmtAST: public BaseAST
   }
 };
 
-// Exp ::= AddExp
+// Exp ::= LOrExp
 class ExpAST: public BaseAST
 {
   public:
-  std::unique_ptr<BaseAST> addexp;
+  std::unique_ptr<BaseAST> lorexp;
 
   void Dump(char * AST) const override
   {
     if (flag==0){
-      strcat(AST,"AddExpAST {\n");
-      addexp->Dump(AST);
+      strcat(AST,"LOrExpAST {\n");
+      lorexp->Dump(AST);
       strcat(AST,"}");
     }
   }
@@ -281,15 +281,15 @@ class ExpAST: public BaseAST
   {
     if (IRV.return_type!=-1) return;
     if (flag==0){
-      addexp->Set_IRV(start_point);
-      IRV = addexp->IRV;
+      lorexp->Set_IRV(start_point);
+      IRV = lorexp->IRV;
     }
 
   }
   void Dump_IR(char * IR) const override
   {
     if (flag == 0){
-      addexp->Dump_IR(IR);
+      lorexp->Dump_IR(IR);
     }
   }
 };
@@ -510,13 +510,14 @@ class MulExpAST: public BaseAST
       IRV = unaryexp->IRV;
     }
     else if(flag==1){
-      mulexp->Set_IRV(start_point);
-      if (mulexp->IRV.return_type==Register){
-        start_point = mulexp->IRV.return_value + 1;
-      }
+      // 先计算unaryexp 再计算乘法
       unaryexp->Set_IRV(start_point);
       if (unaryexp->IRV.return_type==Register){
         start_point = unaryexp->IRV.return_value + 1;
+      }
+      mulexp->Set_IRV(start_point);
+      if (mulexp->IRV.return_type==Register){
+        start_point = mulexp->IRV.return_value + 1;
       }
       IRV.return_type = Register;
       IRV.return_value = start_point;
@@ -527,8 +528,8 @@ class MulExpAST: public BaseAST
       unaryexp->Dump_IR(IR);
     }
     else if(flag==1){
+      unaryexp->Dump_IR(IR); //先unaryexp计算
       mulexp->Dump_IR(IR);
-      unaryexp->Dump_IR(IR);
       string temp_IR = "  " + IRV.get_IR_value() + " = ";
       switch(mulop->flag){
         case 0: temp_IR+="mul ";break;
@@ -540,6 +541,198 @@ class MulExpAST: public BaseAST
     }
   }
 };
+
+// RelExp ::= AddExp | RelExp ("<" | ">" | "<=" | ">=") AddExp;
+class RelExpAST: public BaseAST
+{
+  public:
+  std::unique_ptr<BaseAST> addexp;
+  std::unique_ptr<BaseAST> relop;
+  std::unique_ptr<BaseAST> relexp;
+
+  void Set_IRV(int start_point) override{
+    if (IRV.return_type!=-1)return;
+    if (flag==0){
+      addexp->Set_IRV(start_point);
+      IRV = addexp->IRV;
+    }
+    else if (flag==1){
+      addexp->Set_IRV(start_point);
+      if (addexp->IRV.return_type==Register){
+        start_point = addexp->IRV.return_value + 1;
+      }
+      relexp->Set_IRV(start_point);
+      if (relexp->IRV.return_type==Register){
+        start_point = relexp->IRV.return_value + 1;
+      }
+      IRV.return_type = Register;
+      IRV.return_value = start_point;
+    }
+
+  }
+
+  void Dump_IR(char * IR) const override{
+    if (flag==0){
+      addexp->Dump_IR(IR);
+    }
+    else if (flag==1){
+      addexp->Dump_IR(IR);
+      relexp->Dump_IR(IR);
+      string temp_IR = "  " + IRV.get_IR_value() + " = ";
+      switch (relop->flag)
+      {
+        case 0: temp_IR+="lt ";break;
+        case 1: temp_IR+="gt ";break;
+        case 2: temp_IR+="le ";break;
+        case 3: temp_IR+="ge ";break;
+      }
+      temp_IR+=(relexp->IRV.get_IR_value()+", "+addexp->IRV.get_IR_value()+"\n");
+      strcat(IR,const_cast<char *>(temp_IR.c_str())); 
+    }
+
+  }
+  
+
+};
+
+// EqExp ::= RelExp | EqExp ("==" | "!=") RelExp;
+class EqExpAST: public BaseAST
+{
+  public:
+  std::unique_ptr<BaseAST> eqexp;
+  std::unique_ptr<BaseAST> eqop;
+  std::unique_ptr<BaseAST> relexp;
+
+  void Set_IRV(int start_point) override{
+    if (IRV.return_type!=-1)return;
+    if (flag==0){
+      relexp->Set_IRV(start_point);
+      IRV = relexp->IRV;
+    }
+    else if (flag==1){
+      relexp->Set_IRV(start_point);
+      if (relexp->IRV.return_type==Register){
+        start_point = relexp->IRV.return_value + 1;
+      }
+      eqexp->Set_IRV(start_point);
+      if (eqexp->IRV.return_type==Register){
+        start_point = eqexp->IRV.return_value + 1;
+      }
+      IRV.return_type = Register;
+      IRV.return_value = start_point;
+    }
+  }
+
+  void Dump_IR(char * IR) const override{
+    if (flag==0){
+      relexp->Dump_IR(IR);
+    }
+    else if (flag==1){
+      relexp->Dump_IR(IR);
+      eqexp->Dump_IR(IR);
+      string temp_IR = "  " + IRV.get_IR_value() + " = ";
+      switch (eqop->flag)
+      {
+        case 0: temp_IR+="eq ";break;
+        case 1: temp_IR+="ne ";break;
+      }
+      temp_IR+=(eqexp->IRV.get_IR_value()+", "+relexp->IRV.get_IR_value()+"\n");
+      strcat(IR,const_cast<char *>(temp_IR.c_str())); 
+    }
+    
+  }
+
+};
+
+// LAndExp ::= EqExp | LAndExp "&&" EqExp;
+class LAndExpAST: public BaseAST
+{
+  public:
+  std::unique_ptr<BaseAST> eqexp;
+  std::unique_ptr<BaseAST> landexp;
+  void Set_IRV(int start_point) override{
+    if (IRV.return_type!=-1)return;
+    if (flag==0){
+      eqexp->Set_IRV(start_point);
+      IRV = eqexp->IRV;
+    }
+    else if (flag==1){
+      eqexp->Set_IRV(start_point);
+      if (eqexp->IRV.return_type==Register){
+        start_point = eqexp->IRV.return_value + 1;
+      }
+      landexp->Set_IRV(start_point);
+      if (landexp->IRV.return_type==Register){
+        start_point = landexp->IRV.return_value + 1;
+      }
+      IRV.return_type = Register;
+      IRV.return_value = start_point;
+    }
+
+  }
+
+  void Dump_IR(char * IR) const override{
+    if (flag==0){
+      eqexp->Dump_IR(IR);
+    }
+    else if (flag==1){
+      eqexp->Dump_IR(IR);
+      landexp->Dump_IR(IR);
+      string temp_IR = "  " + IRV.get_IR_value() + " = ";
+      temp_IR += "and ";
+      temp_IR += (landexp->IRV.get_IR_value() + "," + eqexp->IRV.get_IR_value() + "\n");
+      strcat(IR,const_cast<char *>(temp_IR.c_str())); 
+    }
+    
+  }
+
+};
+
+// LOrExp ::= LAndExp | LOrExp "||" LAndExp;
+class LOrExpAST: public BaseAST
+{
+  public:
+  std::unique_ptr<BaseAST> landexp;
+  std::unique_ptr<BaseAST> lorexp;
+
+  void Set_IRV(int start_point) override{
+    if (IRV.return_type!=-1)return;
+    if (flag==0){
+      landexp->Set_IRV(start_point);
+      IRV = landexp->IRV;
+    }
+
+    else if (flag==1){
+      landexp->Set_IRV(start_point);
+      if (landexp->IRV.return_type==Register){
+        start_point = landexp->IRV.return_value + 1;
+      }
+      lorexp->Set_IRV(start_point);
+      if (lorexp->IRV.return_type==Register){
+        start_point = lorexp->IRV.return_value + 1;
+      }
+      IRV.return_type = Register;
+      IRV.return_value = start_point;
+    }
+  }
+
+  void Dump_IR(char * IR) const override{
+    if (flag==0){
+      landexp->Dump_IR(IR);
+    }
+    else if (flag==1){
+      landexp->Dump_IR(IR);
+      lorexp->Dump_IR(IR);
+      string temp_IR = "  " + IRV.get_IR_value() + " = ";
+      temp_IR += "or ";
+      temp_IR += (lorexp->IRV.get_IR_value() + "," + landexp->IRV.get_IR_value() + "\n");
+      strcat(IR,const_cast<char *>(temp_IR.c_str())); 
+    }
+    
+  }
+  
+};
+
 
 // UnaryOp ::= "+" | "-" | "!"; done
 class UnaryOpAST: public BaseAST
@@ -575,3 +768,21 @@ class MulOpAST: public BaseAST
   void Dump(char * AST) const override{}
   void Dump_IR(char * IR) const override{}
 };
+// ("<" | ">" | "<=" | ">=")
+class RelOpAST: public BaseAST
+{
+  public:
+  void Dump(char * AST) const override{}
+  void Dump_IR(char * IR) const override{}
+
+};
+
+//("==" | "!=")
+class EqOpAST: public BaseAST
+{
+  public:
+  void Dump(char * AST) const override{}
+  void Dump_IR(char * IR) const override{}
+
+};
+
