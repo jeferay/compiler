@@ -6,59 +6,6 @@
 using namespace std;
 
 
-// int main() {
-//   // 阿卡林
-//   return +(- -!6);
-// }
-
-// AST 到目前为止生成了AST
-// CompUnitAST { 
-//   FuncDefAST {
-//     FuncTypeAST { int },
-//     main,
-//     BlockAST { 
-//       StmtAST {
-//         ExpAST {
-//           UnaryExpAST{
-//             UnaryOpAST{ + },
-//             UnaryExpAST{
-//               PrimaryExpAST{
-//                 ExpAST {
-//                   UnaryExpAST{
-//                     UnaryOpAST{ - },
-//                     UnaryExpAST{
-//                       UnaryOpAST{ - },
-//                       UnaryExpAST{
-//                         UnaryOpAST{ ! },
-//                         UnaryExpAST{
-//                           PrimaryExpAST{
-//                             6}}}}}}}}}} } } }}
-
-// 编译成如下的 Koopa IR 程序:，注意entry是指的是这个基本块
-// fun @main(): i32 {
-// %entry:
-//   %0 = eq 6, 0
-//   %1 = sub 0, %0
-//   %2 = sub 0, %1
-//   ret %2
-// }
-
-// 我们的目标是, 进一步把它编译为:
-//   .text
-//   .globl main
-// main:
-//   # 实现 eq 6, 0 的操作, 并把结果存入 t0
-//   li    t0, 6
-//   xor   t0, t0, x0
-//   seqz  t0, t0
-//   # 减法
-//   sub   t1, x0, t0
-//   # 减法
-//   sub   t2, x0, t1
-//   # 设置返回值并返回
-//   mv    a0, t2
-//   ret
-
 #define Integer 0
 #define Register 1
 
@@ -76,13 +23,13 @@ typedef struct IR_Ins_Value
     return *this;
   }
 
-  string get_IR_value() const
+  string get_IR_value(int bias_value = 0) const
   {
     if (return_type == Integer){
       return to_string(return_value);
     }
     else if (return_type == Register){
-      return "%"+to_string(return_value);
+      return "%"+to_string(return_value + bias_value);
     }
     else return "not implied yet";
   }
@@ -460,12 +407,11 @@ class AddExpAST: public BaseAST
       mulexp->Set_IRV(start_point);
       if (mulexp->IRV.return_type==Register){
         start_point = mulexp->IRV.return_value + 1; // 如果前半部分用到寄存器，则从下一个开始
-      
+      } 
       // 计算顺序是先乘法再加法
       addexp->Set_IRV(start_point);
       if (addexp->IRV.return_type==Register){
         start_point = addexp->IRV.return_value + 1; // 这里同理
-      }
       }
       IRV.return_type = Register;
       IRV.return_value = start_point;
@@ -666,7 +612,7 @@ class LAndExpAST: public BaseAST
         start_point = landexp->IRV.return_value + 1;
       }
       IRV.return_type = Register;
-      IRV.return_value = start_point;
+      IRV.return_value = start_point + 2; //逻辑land拆解为三部，先两边分别和0取neq再and
     }
 
   }
@@ -678,9 +624,9 @@ class LAndExpAST: public BaseAST
     else if (flag==1){
       eqexp->Dump_IR(IR);
       landexp->Dump_IR(IR);
-      string temp_IR = "  " + IRV.get_IR_value() + " = ";
-      temp_IR += "and ";
-      temp_IR += (landexp->IRV.get_IR_value() + "," + eqexp->IRV.get_IR_value() + "\n");
+      string temp_IR = "  " + IRV.get_IR_value(-2) + " = ne "+landexp->IRV.get_IR_value() + ", 0\n";
+      temp_IR += "  " + IRV.get_IR_value(-1) + " = ne "+ eqexp->IRV.get_IR_value() + ", 0\n";
+      temp_IR += "  " + IRV.get_IR_value(0) + " = and " + IRV.get_IR_value(-2) + ", " + IRV.get_IR_value(-1) + "\n";
       strcat(IR,const_cast<char *>(temp_IR.c_str())); 
     }
     
@@ -712,7 +658,7 @@ class LOrExpAST: public BaseAST
         start_point = lorexp->IRV.return_value + 1;
       }
       IRV.return_type = Register;
-      IRV.return_value = start_point;
+      IRV.return_value = start_point + 1;// 用位运算拼凑
     }
   }
 
@@ -723,9 +669,11 @@ class LOrExpAST: public BaseAST
     else if (flag==1){
       landexp->Dump_IR(IR);
       lorexp->Dump_IR(IR);
-      string temp_IR = "  " + IRV.get_IR_value() + " = ";
+      string temp_IR = "  " + IRV.get_IR_value(-1) + " = ";
       temp_IR += "or ";
-      temp_IR += (lorexp->IRV.get_IR_value() + "," + landexp->IRV.get_IR_value() + "\n");
+      temp_IR += (lorexp->IRV.get_IR_value() + ", " + landexp->IRV.get_IR_value() + "\n");
+      temp_IR += ("  " + IRV.get_IR_value(0) + " = ");
+      temp_IR += ("ne " + IRV.get_IR_value(-1) + ", 0\n");
       strcat(IR,const_cast<char *>(temp_IR.c_str())); 
     }
     
