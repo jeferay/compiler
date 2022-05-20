@@ -46,18 +46,19 @@ int main(int argc, const char *argv[]) {
   char IR[1024]={0};
   ast->Set_IRV(0);//在外部提前set好 start point =0
   ast->Dump_IR(IR);
-  // cout<<IR;
+  cout<<IR<<endl;
 
   char RiscV[1024] = {0};
-  // KoopaIR_2_RiscV(IR,RiscV);
+  KoopaIR_2_RiscV(IR,RiscV);
   
-  freopen(output, "w", stdout);
-  // std::cout<<mode<<endl;
-  if(!strcmp(mode,"-koopa"))
-    std::cout<<IR<<endl;
-  else if (!strcmp(mode,"-riscv"))
-    std::cout<<RiscV<<endl;
-  fclose(stdout);
+  // freopen(output, "w", stdout);
+  // // std::cout<<mode<<endl;
+  // if(!strcmp(mode,"-koopa"))
+  //   std::cout<<IR<<endl;
+  // else if (!strcmp(mode,"-riscv"))
+  //   std::cout<<RiscV<<endl;
+  // fclose(stdout);
+
   return 0;
 }
 
