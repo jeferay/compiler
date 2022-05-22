@@ -50,14 +50,14 @@ int main(int argc, const char *argv[]) {
 
   char RiscV[1024] = {0};
   KoopaIR_2_RiscV(IR,RiscV);
-  
-  // freopen(output, "w", stdout);
-  // // std::cout<<mode<<endl;
-  // if(!strcmp(mode,"-koopa"))
-  //   std::cout<<IR<<endl;
-  // else if (!strcmp(mode,"-riscv"))
-  //   std::cout<<RiscV<<endl;
-  // fclose(stdout);
+  cout<<RiscV<<endl;
+
+  freopen(output, "w", stdout);
+  if(!strcmp(mode,"-koopa"))
+    std::cout<<IR<<endl;
+  else if (!strcmp(mode,"-riscv"))
+    std::cout<<RiscV<<endl;
+  fclose(stdout);
 
   return 0;
 }

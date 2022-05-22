@@ -2,11 +2,12 @@
 #include "koopa.h"
 #include <iostream>
 #include <string>
+#include <string.h>
 #include <cstring>
 #include <memory>
 using namespace std;
 
-
+string get_binary_riscv(int is_Reg, int val);
 // 函数重载
 void Visit(const koopa_raw_slice_t &slice, char * RiscV);
 void Visit(const koopa_raw_return_t & ret, char * RiscV);
@@ -19,6 +20,48 @@ void Visit(const koopa_raw_slice_t &slice, char * RiscV);
 void Visit(const koopa_raw_program_t &program, char * RiscV);
 void Str_2_KoopaIR(const char * IR, char * RiscV);
 
+#define MAX_REG 15
+
+// binary的顺序是lhs在栈顶，rhs在第二个位置，先左再右，因为计算的顺序是先右再左
+struct Reg_Stack{
+  public:
+  int stack[MAX_REG]={0};
+  int reg_ptr = 0;// 记录指针位置
+  int reg_alive[MAX_REG]={0};//record whether the reg is still alive
+
+  void push(int reg){
+    assert (0<=reg&&reg<MAX_REG&&reg_alive[reg]==false);
+    stack[reg_ptr++]=reg;
+    reg_alive[reg]=true;
+    return;
+  }
+
+  // pop does not mean the availability of top element until the ins is carried on
+  int pop(){
+    assert(reg_ptr>0);
+    int res = stack[--reg_ptr];
+    return res;
+  }
+  int first_available(){
+    int i=0;
+    for(i=0;i<MAX_REG;i+=1){
+      if (reg_alive[i]==false)
+        return i;
+    }
+    return i;
+  }
+
+  //reset the availablity status according to the stack
+  void set_available(){
+    memset(reg_alive,0,sizeof(reg_alive));
+    for (int i=0;i<reg_ptr;++i)
+      reg_alive[stack[i]]=true;
+    
+  }
+  void set_alive(int reg){
+    reg_alive[reg] = true; 
+  }
+} reg_stack;
 
 
 // 访问return指令
@@ -28,35 +71,108 @@ void Visit(const koopa_raw_return_t & ret, char * RiscV)
   if (value != NULL)
   {
     koopa_raw_value_kind_t kind = value->kind;
-    int32_t ret_data = kind.data.integer.value;
-    strcat(RiscV, "  li a0, ");
-    strcat(RiscV, const_cast<char *>(to_string(ret_data).c_str()));
+    if (kind.tag==KOOPA_RVT_INTEGER){
+      strcat(RiscV, "  li a0, ");
+      int32_t ret_data = kind.data.integer.value;
+      strcat(RiscV, const_cast<char *>(to_string(ret_data).c_str()));
+    }
+    else if (kind.tag==KOOPA_RVT_BINARY){
+      strcat(RiscV, "  mv a0, ");
+      int reg = reg_stack.pop();
+      strcat(RiscV, const_cast<char*>(get_binary_riscv(true,reg).c_str()));
+      reg_stack.set_available();
+    }
     strcat(RiscV, "\n");
-    
   }
   strcat(RiscV, "  ret\n");
 }
 
+// get the riscv-register according to the val
+string get_binary_riscv(int is_Reg, int val){
+  if (is_Reg==false){
+    assert(val==0);
+    return "x0";
+  }
+  string temp_riscv = "t" + to_string(val);
+  if (val>=8) temp_riscv = "a" + to_string(val-7); //start with a1
+  return temp_riscv;
+}
+
+// 访问二元运算指令
 void Visit(const koopa_raw_binary_t &binary, char * RiscV)
 {
-  cout<<"visit_ins_binary in\n";
+  string temp_RiscV = "";
+  int reg;
+  //cout<<"visit_ins_binary in\n";
   koopa_raw_value_t lhs = binary.lhs; // *koopa_raw_value_data指针类型
   koopa_raw_value_t rhs = binary.rhs;
-  cout<<binary.op<<" "<<(lhs->kind).data.integer.value<<" "<<(lhs->kind).tag<<" "<<(rhs->kind).data.integer.value<<" "<<(rhs->kind).tag<<endl;
-  // 按照operator分类
-  switch (binary.op)
-  {
-  case KOOPA_RBO_ADD: 
 
-    break;
-  
-  case KOOPA_RBO_SUB:
-    
-    break;
-  
+  //先处理左右运算数
+  int l_val=0,r_val=0;
+  bool is_Reg_l=false,is_Reg_r=false;
+  if (lhs->kind.tag==KOOPA_RVT_BINARY){
+    l_val = reg_stack.pop();
+    is_Reg_l=true;
+  }
+  else if (lhs->kind.tag==KOOPA_RVT_INTEGER){
+    l_val = lhs->kind.data.integer.value;
+    is_Reg_l = false;
+  }
+  if (rhs->kind.tag==KOOPA_RVT_BINARY){
+    r_val = reg_stack.pop();
+    is_Reg_r = true;
+  }
+  else if (rhs->kind.tag==KOOPA_RVT_INTEGER){
+    r_val = rhs->kind.data.integer.value;
+    is_Reg_r = false;
+  }
+  // load immediate
+  if (is_Reg_l==false&&l_val!=0){
+    reg = reg_stack.first_available();
+    reg_stack.set_alive(reg);
+    temp_RiscV+="  li   " + get_binary_riscv(true,reg) + ", " + to_string(l_val) + "\n";
+    is_Reg_l = true; // replace
+    l_val = reg;
+  }
+  if (is_Reg_r==false&&r_val!=0){
+    reg = reg_stack.first_available();
+    reg_stack.set_alive(reg);
+    temp_RiscV+="  li   " + get_binary_riscv(true,reg) + ", " + to_string(r_val) + "\n";
+    is_Reg_r = true; // replace
+    r_val = reg;
+  }
+
+  //处理该条指令返回reg_stack
+  reg = reg_stack.first_available();
+  reg_stack.push(reg);
+
+  //cout<<binary.op<<" "<<(lhs->kind).data.integer.value<<" "<<(lhs->kind).tag<<" "<<(rhs->kind).data.integer.value<<" "<<(rhs->kind).tag<<endl;
+  // 按照operator分类
+  switch (binary.op) // binary.op是int类型的
+  {
+  case KOOPA_RBO_NOT_EQ: temp_RiscV += "  xor   " + get_binary_riscv(true,reg) + ", " + get_binary_riscv(is_Reg_l,l_val) + ", " + get_binary_riscv(is_Reg_r,r_val) + "\n";
+                     temp_RiscV += "  snez   "+ get_binary_riscv(true,reg) + ", " + get_binary_riscv(true,reg) + "\n";break;
+  case KOOPA_RBO_EQ: temp_RiscV += "  xor   " + get_binary_riscv(true,reg) + ", " + get_binary_riscv(is_Reg_l,l_val) + ", " + get_binary_riscv(is_Reg_r,r_val) + "\n";
+                     temp_RiscV += "  seqz   "+ get_binary_riscv(true,reg) + ", " + get_binary_riscv(true,reg) + "\n";break;
+  case KOOPA_RBO_GT: temp_RiscV += "  sgt   " + get_binary_riscv(true,reg) + ", " + get_binary_riscv(is_Reg_l,l_val) + ", " + get_binary_riscv(is_Reg_r,r_val) + "\n";break;
+  case KOOPA_RBO_LT: temp_RiscV += "  slt   " + get_binary_riscv(true,reg) + ", " + get_binary_riscv(is_Reg_l,l_val) + ", " + get_binary_riscv(is_Reg_r,r_val) + "\n";break;
+  case KOOPA_RBO_GE: temp_RiscV += "  slt   " + get_binary_riscv(true,reg) + ", " + get_binary_riscv(is_Reg_l,l_val) + ", " + get_binary_riscv(is_Reg_r,r_val) + "\n";
+                     temp_RiscV += "  seqz   "+ get_binary_riscv(true,reg) + ", " + get_binary_riscv(true,reg) + "\n";break; 
+  case KOOPA_RBO_LE: temp_RiscV += "  sgt   " + get_binary_riscv(true,reg) + ", " + get_binary_riscv(is_Reg_l,l_val) + ", " + get_binary_riscv(is_Reg_r,r_val) + "\n";
+                     temp_RiscV += "  seqz   "+ get_binary_riscv(true,reg) + ", " + get_binary_riscv(true,reg) + "\n";break; 
+  case KOOPA_RBO_ADD:temp_RiscV += "  add   " + get_binary_riscv(true,reg) + ", " + get_binary_riscv(is_Reg_l,l_val) + ", " + get_binary_riscv(is_Reg_r,r_val) + "\n";break;
+  case KOOPA_RBO_SUB:temp_RiscV += "  sub   " + get_binary_riscv(true,reg) + ", " + get_binary_riscv(is_Reg_l,l_val) + ", " + get_binary_riscv(is_Reg_r,r_val) + "\n";break;
+  case KOOPA_RBO_MUL:temp_RiscV += "  mul   " + get_binary_riscv(true,reg) + ", " + get_binary_riscv(is_Reg_l,l_val) + ", " + get_binary_riscv(is_Reg_r,r_val) + "\n";break;
+  case KOOPA_RBO_DIV:temp_RiscV += "  div   " + get_binary_riscv(true,reg) + ", " + get_binary_riscv(is_Reg_l,l_val) + ", " + get_binary_riscv(is_Reg_r,r_val) + "\n";break;
+  case KOOPA_RBO_MOD:temp_RiscV += "  rem   " + get_binary_riscv(true,reg) + ", " + get_binary_riscv(is_Reg_l,l_val) + ", " + get_binary_riscv(is_Reg_r,r_val) + "\n";break;
+  case KOOPA_RBO_AND:temp_RiscV += "  and   " + get_binary_riscv(true,reg) + ", " + get_binary_riscv(is_Reg_l,l_val) + ", " + get_binary_riscv(is_Reg_r,r_val) + "\n";break;
+  case KOOPA_RBO_OR: temp_RiscV += "  or   "  + get_binary_riscv(true,reg) + ", " + get_binary_riscv(is_Reg_l,l_val) + ", " + get_binary_riscv(is_Reg_r,r_val) + "\n";break;
+
   default:
     break;
   }
+  strcat(RiscV,const_cast<char*>(temp_RiscV.c_str()));
+  reg_stack.set_available(); // reset availability status
 
 }
 
