@@ -48,7 +48,9 @@ using namespace std;
 %token <int_val> INT_CONST
 
 // 非终结符的类型定义 所有的非终结符都改成ast类型
-%type <ast_val> FuncDef FuncType Block Stmt Exp PrimaryExp UnaryExp UnaryOp AddExp MulExp AddOp MulOp LOrExp LAndExp EqExp RelExp EqOp RelOp
+%type <ast_val> FuncDef FuncType Block BlockItem BlockItems
+%type Stmt Exp PrimaryExp UnaryExp UnaryOp AddExp MulExp AddOp MulOp LOrExp LAndExp EqExp RelExp EqOp RelOp ConstExp 
+%type <ast_val> Decl ConstDecl BType ConstDefs ConstDef ConstInitVal LVal 
 %type <int_val> Number //number我们这里是定义为int类型的
 
 %%
@@ -95,13 +97,109 @@ FuncType
     $$  = new FuncTypeAST("int");
   };
 
-Block
-  : '{' Stmt '}' 
+
+Block // not yet
+  : '{' BlockItems '}' 
   {
     auto block = new BlockAST();
-    block->stmt = unique_ptr<BaseAST>($2);
+    block->flag=0;
+    block->blockitems = unique_ptr<BaseAST>($2);
+    $$ = block;
+  }
+  | '{' '}'
+  {
+    auto block = new BlockAST();
+    block->flag=1;
     $$ = block;
   };
+
+BlockItems
+  :BlockItems BlockItem
+  {
+
+  }
+  | BlockItem
+  {
+
+  };
+
+BlockItem
+  :Decl
+  {
+    auto blockitem = new BlockItemAST();
+    blockitem->decl = unique_ptr<BaseAST>($1);
+    blockitem->flag=0;
+    $$ = blockitem
+  }
+  |Stmt
+  {
+    auto blockitem = new BlockItemAST();
+    blockitem->stmt = unique_ptr<BaseAST>($1);
+    blockitem->flag=1;
+    $$ = blockitem
+  };
+
+Decl 
+  :ConstDecl
+  {
+    auto decl = DeclAST();
+    decl->constdecl = unique_ptr<BaseAST>($1);
+    decl->flag=0;
+    $$ = decl;
+  };
+
+ConstDecl //not yet
+  : "const" BType ConstDefs ';'
+  {
+    auto constdecl = new ConstDeclAST();
+    constdecl->btype = unique_ptr<BaseAST>($2);
+    constdecl->constdefs = unique_ptr<BaseAST>($3);
+
+    $$=constdecl;
+
+
+  };
+
+BType
+  : "int"{
+    auto btype = new BTypeAST();
+    btype->flag=0;
+    $$ = btype;
+  };
+
+ConstDef
+  : IDENT '=' ConstInitVal
+  {
+    auto constdef = new ConstDefAST();
+    constdef->ident = *unique_ptr<string>($1);
+    constdef->constinitval = unique_ptr<BaseAST>($3);
+    $$ = constdef;
+  }
+ConstInitVal
+  : ConstExp
+  {
+    auto constinitval = new ConstInitValAST();
+    constinitval->constexp = unique_ptr<BaseAST>($1);
+    $$ = constinitval;
+  };
+
+LVal
+  : IDENT
+  {
+    auto lval = new LValAST();
+    lval->ident = *unique_ptr<string>($1);
+    $$ = lval;
+  };
+
+ConstExp
+  : Exp
+  {
+    auto constexp = new ConstExpAST();
+    constexp->exp = unique_ptr<BaseAST>($1);
+    constexp->flag = 0;
+    $$ = constexp;
+  };
+
 
 Stmt
   : RETURN Exp ';' 
@@ -111,6 +209,7 @@ Stmt
     stmt->exp = unique_ptr<BaseAST>($2);
     $$ = stmt;
   };
+
 
 Exp 
   : LOrExp
@@ -209,7 +308,6 @@ AddExp
     $$ = addexp;
   };
 
-
 MulExp 
   : UnaryExp 
   {
@@ -228,7 +326,6 @@ MulExp
     $$ = mulexp;
   };
 
-
 PrimaryExp
   : '(' Exp ')'
   {
@@ -244,7 +341,14 @@ PrimaryExp
     primaryexp->flag = 1;
     primaryexp->number = int($1);
     $$ = primaryexp;
-  };
+  }
+  | LVal
+  {
+    auto primaryexp = new PrimaryExpAST();
+    primaryexp->flag = 2;
+    primaryexp->lval   = unique_ptr<BaseAST>($1);
+    $$ = primaryexp;
+  }
 
 Number
   : INT_CONST 
