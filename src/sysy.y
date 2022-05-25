@@ -35,6 +35,7 @@ using namespace std;
 
 %union {
   BaseAST *ast_val;
+  
   std::string *str_val;
   int int_val;
 }
@@ -48,9 +49,9 @@ using namespace std;
 %token <int_val> INT_CONST
 
 // 非终结符的类型定义 所有的非终结符都改成ast类型
-%type <ast_val> FuncDef FuncType Block BlockItem BlockItems
-%type Stmt Exp PrimaryExp UnaryExp UnaryOp AddExp MulExp AddOp MulOp LOrExp LAndExp EqExp RelExp EqOp RelOp ConstExp 
-%type <ast_val> Decl ConstDecl BType ConstDefs ConstDef ConstInitVal LVal 
+%type <ast_val> FuncDef FuncType Block BlockItem BlockItemVec
+%type <ast_val> Stmt Exp PrimaryExp UnaryExp UnaryOp AddExp MulExp AddOp MulOp LOrExp LAndExp EqExp RelExp EqOp RelOp ConstExp 
+%type <ast_val> Decl ConstDecl BType ConstDefVec ConstDef ConstInitVal LVal 
 %type <int_val> Number //number我们这里是定义为int类型的
 
 %%
@@ -98,29 +99,33 @@ FuncType
   };
 
 
-Block // not yet
-  : '{' BlockItems '}' 
+Block // not sure
+  :'{' '}'
   {
     auto block = new BlockAST();
     block->flag=0;
-    block->blockitems = unique_ptr<BaseAST>($2);
     $$ = block;
   }
-  | '{' '}'
+  |'{' BlockItemVec '}' 
   {
     auto block = new BlockAST();
     block->flag=1;
+    block->blockitemvec = unique_ptr<BaseAST>($2);
     $$ = block;
   };
 
-BlockItems
-  :BlockItems BlockItem
+BlockItemVec
+  :BlockItemVec BlockItem
   {
-
+    auto blockitemvec = static_cast<BlockItemVecAST*>($1);
+    blockitemvec->itemvec.push_back(unique_ptr<BaseAST>($2));
+    $$ = blockitemvec;
   }
   | BlockItem
   {
-
+    auto blockitemvec = new BlockItemVecAST();
+    blockitemvec->itemvec.push_back(unique_ptr<BaseAST>($1));
+    $$ = blockitemvec;
   };
 
 BlockItem
@@ -129,43 +134,56 @@ BlockItem
     auto blockitem = new BlockItemAST();
     blockitem->decl = unique_ptr<BaseAST>($1);
     blockitem->flag=0;
-    $$ = blockitem
+    $$ = blockitem;
   }
   |Stmt
   {
     auto blockitem = new BlockItemAST();
     blockitem->stmt = unique_ptr<BaseAST>($1);
     blockitem->flag=1;
-    $$ = blockitem
+    $$ = blockitem;
   };
 
 Decl 
   :ConstDecl
   {
-    auto decl = DeclAST();
+    auto decl = new DeclAST();
     decl->constdecl = unique_ptr<BaseAST>($1);
     decl->flag=0;
     $$ = decl;
   };
 
-ConstDecl //not yet
-  : "const" BType ConstDefs ';'
+ConstDecl //not sure
+  : "const" BType ConstDefVec ';'
   {
     auto constdecl = new ConstDeclAST();
     constdecl->btype = unique_ptr<BaseAST>($2);
-    constdecl->constdefs = unique_ptr<BaseAST>($3);
-
+    constdecl->constdefvec = unique_ptr<BaseAST>($3);
     $$=constdecl;
-
-
   };
+
 
 BType
   : "int"{
-    auto btype = new BTypeAST();
+    auto btype = new BtypeAST();
     btype->flag=0;
     $$ = btype;
   };
+
+ConstDefVec
+  :ConstDefVec ',' ConstDef
+  {
+    auto constdefvec = static_cast<ConstDefVecAST*>($1);
+    constdefvec->itemvec.push_back(unique_ptr<BaseAST>($3));
+    $$ = constdefvec;
+  }
+  | ConstDef
+  {
+    auto constdefvec = new ConstDefVecAST();
+    constdefvec->itemvec.push_back(unique_ptr<BaseAST>($1));
+    $$ = constdefvec;
+  };
+
 
 ConstDef
   : IDENT '=' ConstInitVal
@@ -179,6 +197,7 @@ ConstInitVal
   : ConstExp
   {
     auto constinitval = new ConstInitValAST();
+    constinitval->flag=0;
     constinitval->constexp = unique_ptr<BaseAST>($1);
     $$ = constinitval;
   };
@@ -208,7 +227,23 @@ Stmt
     stmt->flag = 0; // 表示return一个exp这种的分解方式
     stmt->exp = unique_ptr<BaseAST>($2);
     $$ = stmt;
-  };
+  }
+  | RETURN LVal ';'
+  {
+    auto stmt = new StmtAST();
+    stmt->flag = 1;
+    stmt->lval = unique_ptr<BaseAST>($2);
+    $$ = stmt;
+  }
+  | LVal '=' Exp ';'
+  {
+    auto stmt = new StmtAST();
+    stmt->flag = 2;
+    stmt->lval = unique_ptr<BaseAST>($1);
+    stmt->exp = unique_ptr<BaseAST>($3);
+    $$ = stmt;
+  }
+  ;
 
 
 Exp 

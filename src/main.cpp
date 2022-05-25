@@ -18,6 +18,8 @@ using namespace std;
 extern FILE *yyin;
 extern int yyparse(std::unique_ptr<BaseAST> &ast);
 
+
+
 int main(int argc, const char *argv[]) {
   // 解析命令行参数. 测试脚本/评测平台要求你的编译器能接收如下参数:
   // compiler 模式 输入文件 -o 输出文件
@@ -44,20 +46,22 @@ int main(int argc, const char *argv[]) {
   // // 输出解析得到的 Koopa IR
   
   char IR[1024]={0};
+  ast->set_symbol_table();
+  // cout<<symbol_table;
   ast->Set_IRV(0);//在外部提前set好 start point =0
-  ast->Dump_IR(IR);
-  cout<<IR<<endl;
+  // ast->Dump_IR(IR);
+  // cout<<IR<<endl;
 
-  char RiscV[1024] = {0};
-  KoopaIR_2_RiscV(IR,RiscV);
-  cout<<RiscV<<endl;
+  // char RiscV[1024] = {0};
+  // KoopaIR_2_RiscV(IR,RiscV);
+  // cout<<RiscV<<endl;
 
-  freopen(output, "w", stdout);
-  if(!strcmp(mode,"-koopa"))
-    std::cout<<IR<<endl;
-  else if (!strcmp(mode,"-riscv"))
-    std::cout<<RiscV<<endl;
-  fclose(stdout);
+  // freopen(output, "w", stdout);
+  // if(!strcmp(mode,"-koopa"))
+  //   std::cout<<IR<<endl;
+  // else if (!strcmp(mode,"-riscv"))
+  //   std::cout<<RiscV<<endl;
+  // fclose(stdout);
 
   return 0;
 }

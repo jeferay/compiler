@@ -1,5 +1,6 @@
 int main() {
-  return 11 || 0;
+  int a = 0;
+  return a;
 }
 /*
 fun @main(): i32 {
