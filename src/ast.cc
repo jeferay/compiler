@@ -9,11 +9,6 @@
 #include "ast.h"
 using namespace std;
 
-#define Integer 0
-#define Register 1
-
-#define ConstVal 0
-#define Val 1
 
 SymbolTable symbol_table;
 
@@ -61,6 +56,7 @@ FuncTypeAST::FuncTypeAST() {}
 void BlockAST::Set_IRV(int start_point) {
 	if (flag == 1) {
 		blockitemvec->Set_IRV(start_point);
+		IRV = blockitemvec->IRV;
 	}
 }
 
@@ -94,9 +90,11 @@ void BlockItemVecAST::Set_IRV(int start_point) {
 	int i = 0;
 	for (i = 0; i < itemvec.size(); i++) {
 		itemvec[i]->Set_IRV(start_point);
-		start_point = itemvec[i]->IRV.return_value + 1;
+		if (itemvec[i]->IRV.return_type == Register) {
+			start_point = itemvec[i]->IRV.return_value + 1;
+			IRV = itemvec[i]->IRV;
+		}
 	}
-	IRV = itemvec[i - 1]->IRV;
 }
 
 
@@ -129,28 +127,36 @@ void BlockItemAST::Set_IRV(int start_point) {
 
 
 
-// Decl::=ConstDecl
+// Decl::=ConstDecl|VarDecl
 void DeclAST::set_symbol_table() {
 	if (flag == 0) {
 		constdecl->set_symbol_table();
+	}
+	else if (flag == 1) {
+		vardecl->set_symbol_table();
 	}
 }
 
 void DeclAST::Dump_IR(char* IR) const {
 	if (flag == 0) {}// const定义不用dump
+	else if (flag == 1) {
+		vardecl->Dump_IR(IR);
+	}
 }
 
+void DeclAST::Set_IRV(int start_point) {
+	if (flag == 0) {}// const定义 不用设定IRV
+	else if (flag == 1) {
+		vardecl->Set_IRV(start_point);
+		IRV = vardecl->IRV;
+	}
+}
 
 
 // ConstDecl::="const" BType ConstDefVec ';'
 void ConstDeclAST::set_symbol_table() {
 	constdefvec->set_symbol_table();
 }
-
-void ConstDeclAST::Dump_IR(char* IR) const {
-	return;//似乎不需要输出IR，只需要在符号表里记录
-}
-
 
 // ConstDefVec::= ConstDefVec ',' ConstDef | ConstDef
 
@@ -160,13 +166,12 @@ void ConstDefVecAST::set_symbol_table() {
 	}
 }
 
-
 // ConstDefAST::= IDENT '=' ConstInitVal
 int ConstDefAST::calculate() {
 	return constinitval->calculate();
 }
 void ConstDefAST::set_symbol_table() {
-	symbol_table.insert(ident, calculate());
+	symbol_table.insert(ident, ConstVar, calculate());
 }
 
 // ConstInitVal::= ConstExp
@@ -175,8 +180,20 @@ int ConstInitValAST::calculate() {
 }
 
 // LVal::= IDENT
-int LValAST::lookup_table() {
+Varient LValAST::lookup_table() {
 	return symbol_table.find(ident);
+}
+
+void::LValAST::Set_IRV(int start_point) {
+	Varient v = lookup_table();
+	if (v.tag == ConstVar) {
+		IRV.return_type = Integer;
+		IRV.return_value = v.value;
+	}
+	else if (v.tag == Var) {
+		IRV.return_type = Register;
+		IRV.return_value = start_point;
+	}
 }
 
 // ConstExp ::= Exp
@@ -184,33 +201,94 @@ int ConstExpAST::calculate() {
 	return exp->calculate();
 }
 
+// VarDecl::=Btype VarDefVec ';'
+void VarDeclAST::set_symbol_table() {
+	vardefvec->set_symbol_table();
+}
 
-// StmtAST::= RETURN Exp ';' | RETURN LVal ';' | Lval '=' Exp ';'
+void VarDeclAST::Set_IRV(int start_point) {
+	vardefvec->Set_IRV(start_point);
+  IRV = vardefvec->IRV;
+}
+
+void VarDeclAST::Dump_IR(char* IR) const {
+	vardefvec->Dump_IR(IR);
+}
+
+// VarDefVec::=VarDefVec ',' VarDef | VarDef
+void VarDefVecAST::set_symbol_table() {
+	for (int i = 0; i < itemvec.size(); ++i) {
+		itemvec[i]->set_symbol_table();
+	}
+}
+
+void VarDefVecAST::Set_IRV(int start_point) {
+	int i = 0;
+	for (i=0; i < itemvec.size(); ++i) {
+		itemvec[i]->Set_IRV(start_point);
+		if (itemvec[i]->IRV.return_type == Register) {
+			start_point = itemvec[i]->IRV.return_value + 1;
+			IRV = itemvec[i]->IRV;
+		}
+	}
+}
+void VarDefVecAST::Dump_IR(char* IR)const {
+	for (int i = 0; i < itemvec.size(); ++i) {
+		itemvec[i]->Dump_IR(IR);
+	}
+}
+
+// VarDef::=IDENT|IDENT '=' InitVal
+void VarDefAST::set_symbol_table() {
+	symbol_table.insert(ident, Varient(Var, 0));
+}
+void VarDefAST::Set_IRV(int start_point) {
+	if (flag == 0) {}// 不操作
+	if (flag == 1) {
+		initval->Set_IRV(start_point);
+		IRV = initval->IRV;
+	}
+}
+
+void VarDefAST::Dump_IR(char* IR) const {
+	std::string temp_IR = "  @" + ident + " = alloc i32\n";
+	strcat(IR, const_cast<char*>(temp_IR.c_str()));
+	if (flag == 1) {
+		initval->Dump_IR(IR);
+		temp_IR = "  store " + initval->IRV.get_IR_value() + ", @" + ident + "\n";
+		strcat(IR, const_cast<char*>(temp_IR.c_str()));
+	}
+}
+
+// InitVal::=Exp
+void InitValAST::Set_IRV(int start_point) {
+	exp->Set_IRV(start_point);
+	IRV = exp->IRV;
+}
+void InitValAST::Dump_IR(char* IR) const {
+	exp->Dump_IR(IR);
+}
+
+
+// StmtAST::= RETURN Exp ';'| Lval '=' Exp ';'
 void StmtAST::Set_IRV(int start_point) {
 	if (IRV.return_type != -1) return;
-	if (flag == 0) {
+	if (flag == 0 || flag == 1) {
 		exp->Set_IRV(start_point);
 		IRV = exp->IRV;
 	}
 }
-void StmtAST::Dump_IR(char* IR) const {
+void StmtAST::Dump_IR(char* IR) const { // not yet
 	// return exp
 	if (flag == 0) {
 		exp->Dump_IR(IR);
-		strcat(IR, "  ret ");
-		if (this->IRV.return_type == Integer) {
-			strcat(IR, const_cast<char*>(std::to_string(IRV.return_value).c_str()));
-			strcat(IR, "\n");
-		}
-		else if (IRV.return_type == Register) {
-			strcat(IR, const_cast<char*>(("%" + std::to_string(IRV.return_value) + "\n").c_str()));
-		}
+		std::string temp_IR = "  ret " + IRV.get_IR_value() + "\n";
+		strcat(IR, const_cast<char*>(temp_IR.c_str()));
 	}
 	else if (flag == 1) {
-		strcat(IR, const_cast<char*>(("  ret " + std::to_string(lval->lookup_table()) + "\n").c_str()));
-	}
-	else if (flag == 2) {
-
+		exp->Dump_IR(IR);
+		std::string temp_IR = "  store " + IRV.get_IR_value() + ", @" + dynamic_cast<LValAST&>(*lval).ident + "\n";
+		strcat(IR, const_cast<char*>(temp_IR.c_str()));
 	}
 }
 
@@ -228,6 +306,44 @@ void ExpAST::Set_IRV(int start_point) {
 void ExpAST::Dump_IR(char* IR) const {
 	if (flag == 0) {
 		lorexp->Dump_IR(IR);
+	}
+}
+
+
+// PrimaryExp ::= "(" Exp ")" | Number| LVal
+int PrimaryExpAST::calculate() {
+	if (flag == 0) return exp->calculate();
+	if (flag == 1) return number;
+	if (flag == 2) return lval->lookup_table().value;
+}
+
+void PrimaryExpAST::Set_IRV(int start_point) {
+	if (IRV.return_type != -1) return;
+	switch (flag) {
+	case 0: {
+		exp->Set_IRV(start_point);
+		IRV = exp->IRV;
+		break;
+	}
+	case 1: {
+		IRV.return_type = Integer;
+		IRV.return_value = number;
+		break;
+	}
+	case 2: { // 可能是register（由变量load而来）或者integer
+		lval->Set_IRV(start_point);
+		IRV = lval->IRV;
+		break;
+	}
+	}
+}
+void PrimaryExpAST::Dump_IR(char* IR) const {
+	if (flag == 0) {
+		exp->Dump_IR(IR);
+	}
+	else if (flag==2&&IRV.return_type==Register) { // load一个变量
+		std::string temp_IR = "  " + IRV.get_IR_value() + " = load @" + dynamic_cast<LValAST&>(*lval).ident + "\n";
+    strcat(IR, const_cast<char*>(temp_IR.c_str()));
 	}
 }
 
@@ -310,84 +426,6 @@ void UnaryExpAST::Dump_IR(char* IR) const {
 
 }
 
-// PrimaryExp ::= "(" Exp ")" | Number| LVal
-int PrimaryExpAST::calculate() {
-	if (flag == 0) return exp->calculate();
-	if (flag == 1) return number;
-	if (flag == 2) return lval->lookup_table();
-}
-void PrimaryExpAST::Set_IRV(int start_point) {
-	if (IRV.return_type != -1) return;
-	switch (flag){
-	case 0:exp->Set_IRV(start_point); IRV = exp->IRV; break;
-	case 1:IRV.return_type = Integer; IRV.return_value = number; break;
-	case 2:lval->Set_IRV(start_point);
-	default:
-		break;
-	}
-	if (flag == 0) {
-		exp->Set_IRV(start_point);
-		IRV = exp->IRV; // 保持一致
-	}
-	else if (flag == 1){
-		IRV.return_type = Integer;
-		IRV.return_value = number;
-	}
-	
-}
-void PrimaryExpAST::Dump_IR(char* IR) const {
-	// Set_IRV(); // 结构已经完全推断，可以直接set
-	if (flag == 0) {
-		exp->Dump_IR(IR);
-	}
-}
-
-// AddExp ::= MulExp | AddExp AddOp MulExp;
-int AddExpAST::calculate() {
-	if (flag == 0) return mulexp->calculate();
-	else if (flag == 1) {
-		if (addop->flag == 0) return addexp->calculate() + mulexp->calculate();
-		else if (addop->flag == 1) return addexp->calculate() - mulexp->calculate();
-	}
-}
-void AddExpAST::Set_IRV(int start_point) {
-	if (IRV.return_type != -1) return;
-	if (flag == 0) {
-		mulexp->Set_IRV(start_point);
-		IRV = mulexp->IRV;
-	}
-	else if (flag == 1) {
-		mulexp->Set_IRV(start_point);
-		if (mulexp->IRV.return_type == Register) {
-			start_point = mulexp->IRV.return_value + 1; // 如果前半部分用到寄存器，则从下一个开始
-		}
-		// 计算顺序是先乘法再加法
-		addexp->Set_IRV(start_point);
-		if (addexp->IRV.return_type == Register) {
-			start_point = addexp->IRV.return_value + 1; // 这里同理
-		}
-		IRV.return_type = Register;
-		IRV.return_value = start_point;
-	}
-}
-void AddExpAST::Dump_IR(char* IR) const {
-	if (flag == 0) {
-		mulexp->Dump_IR(IR);
-	}
-	else if (flag == 1) {
-		mulexp->Dump_IR(IR);
-		addexp->Dump_IR(IR);
-		std::string temp_IR = "  " + IRV.get_IR_value() + " = ";
-		if (addop->flag == 0) {
-			temp_IR += ("add ");
-		}
-		else if (addop->flag == 1) {
-			temp_IR += ("sub ");
-		}
-		temp_IR += (addexp->IRV.get_IR_value() + ", " + mulexp->IRV.get_IR_value() + "\n");
-		strcat(IR, const_cast<char*>(temp_IR.c_str()));
-	}
-}
 
 // MulExp ::=UnaryExp | MulExp MulOp UnaryExp
 int MulExpAST::calculate() {
@@ -408,14 +446,13 @@ void MulExpAST::Set_IRV(int start_point) {
 		IRV = unaryexp->IRV;
 	}
 	else if (flag == 1) {
-		// 先计算unaryexp 再计算乘法
-		unaryexp->Set_IRV(start_point);
-		if (unaryexp->IRV.return_type == Register) {
-			start_point = unaryexp->IRV.return_value + 1;
-		}
 		mulexp->Set_IRV(start_point);
 		if (mulexp->IRV.return_type == Register) {
 			start_point = mulexp->IRV.return_value + 1;
+		}
+		unaryexp->Set_IRV(start_point);
+		if (unaryexp->IRV.return_type == Register) {
+			start_point = unaryexp->IRV.return_value + 1;
 		}
 		IRV.return_type = Register;
 		IRV.return_value = start_point;
@@ -426,8 +463,8 @@ void MulExpAST::Dump_IR(char* IR) const {
 		unaryexp->Dump_IR(IR);
 	}
 	else if (flag == 1) {
-		unaryexp->Dump_IR(IR); //先unaryexp计算
 		mulexp->Dump_IR(IR);
+		unaryexp->Dump_IR(IR);
 		std::string temp_IR = "  " + IRV.get_IR_value() + " = ";
 		switch (mulop->flag) {
 		case 0: temp_IR += "mul "; break;
@@ -438,6 +475,53 @@ void MulExpAST::Dump_IR(char* IR) const {
 		strcat(IR, const_cast<char*>(temp_IR.c_str()));
 	}
 }
+
+// AddExp ::= MulExp | AddExp AddOp MulExp;
+int AddExpAST::calculate() {
+	if (flag == 0) return mulexp->calculate();
+	else if (flag == 1) {
+		if (addop->flag == 0) return addexp->calculate() + mulexp->calculate();
+		else if (addop->flag == 1) return addexp->calculate() - mulexp->calculate();
+	}
+}
+void AddExpAST::Set_IRV(int start_point) {
+	if (IRV.return_type != -1) return;
+	if (flag == 0) {
+		mulexp->Set_IRV(start_point);
+		IRV = mulexp->IRV;
+	}
+	else if (flag == 1) {
+		addexp->Set_IRV(start_point);
+		if (addexp->IRV.return_type == Register) {
+			start_point = addexp->IRV.return_value + 1;
+		}
+		mulexp->Set_IRV(start_point);
+		if (mulexp->IRV.return_type == Register) {
+			start_point = mulexp->IRV.return_value + 1; 
+		}
+		IRV.return_type = Register;
+		IRV.return_value = start_point;
+	}
+}
+void AddExpAST::Dump_IR(char* IR) const {
+	if (flag == 0) {
+		mulexp->Dump_IR(IR);
+	}
+	else if (flag == 1) {
+		addexp->Dump_IR(IR);
+		mulexp->Dump_IR(IR);
+		std::string temp_IR = "  " + IRV.get_IR_value() + " = ";
+		if (addop->flag == 0) {
+			temp_IR += ("add ");
+		}
+		else if (addop->flag == 1) {
+			temp_IR += ("sub ");
+		}
+		temp_IR += (addexp->IRV.get_IR_value() + ", " + mulexp->IRV.get_IR_value() + "\n");
+		strcat(IR, const_cast<char*>(temp_IR.c_str()));
+	}
+}
+
 
 // RelExp ::= AddExp | RelExp ("<" | ">" | "<=" | ">=") AddExp;
 int RelExpAST::calculate() {
@@ -459,13 +543,13 @@ void RelExpAST::Set_IRV(int start_point) {
 		IRV = addexp->IRV;
 	}
 	else if (flag == 1) {
-		addexp->Set_IRV(start_point);
-		if (addexp->IRV.return_type == Register) {
-			start_point = addexp->IRV.return_value + 1;
-		}
 		relexp->Set_IRV(start_point);
 		if (relexp->IRV.return_type == Register) {
 			start_point = relexp->IRV.return_value + 1;
+		}
+		addexp->Set_IRV(start_point);
+		if (addexp->IRV.return_type == Register) {
+			start_point = addexp->IRV.return_value + 1;
 		}
 		IRV.return_type = Register;
 		IRV.return_value = start_point;
@@ -476,8 +560,8 @@ void RelExpAST::Dump_IR(char* IR) const {
 		addexp->Dump_IR(IR);
 	}
 	else if (flag == 1) {
-		addexp->Dump_IR(IR);
 		relexp->Dump_IR(IR);
+		addexp->Dump_IR(IR);
 		std::string temp_IR = "  " + IRV.get_IR_value() + " = ";
 		switch (relop->flag)
 		{
@@ -512,13 +596,13 @@ void EqExpAST::Set_IRV(int start_point) {
 		IRV = relexp->IRV;
 	}
 	else if (flag == 1) {
-		relexp->Set_IRV(start_point);
-		if (relexp->IRV.return_type == Register) {
-			start_point = relexp->IRV.return_value + 1;
-		}
 		eqexp->Set_IRV(start_point);
 		if (eqexp->IRV.return_type == Register) {
 			start_point = eqexp->IRV.return_value + 1;
+		}
+		relexp->Set_IRV(start_point);
+		if (relexp->IRV.return_type == Register) {
+			start_point = relexp->IRV.return_value + 1;
 		}
 		IRV.return_type = Register;
 		IRV.return_value = start_point;
@@ -529,8 +613,8 @@ void EqExpAST::Dump_IR(char* IR) const {
 		relexp->Dump_IR(IR);
 	}
 	else if (flag == 1) {
-		relexp->Dump_IR(IR);
 		eqexp->Dump_IR(IR);
+		relexp->Dump_IR(IR);
 		std::string temp_IR = "  " + IRV.get_IR_value() + " = ";
 		switch (eqop->flag)
 		{
@@ -558,13 +642,13 @@ void LAndExpAST::Set_IRV(int start_point) {
 		IRV = eqexp->IRV;
 	}
 	else if (flag == 1) {
-		eqexp->Set_IRV(start_point);
-		if (eqexp->IRV.return_type == Register) {
-			start_point = eqexp->IRV.return_value + 1;
-		}
 		landexp->Set_IRV(start_point);
 		if (landexp->IRV.return_type == Register) {
 			start_point = landexp->IRV.return_value + 1;
+		}
+		eqexp->Set_IRV(start_point);
+		if (eqexp->IRV.return_type == Register) {
+			start_point = eqexp->IRV.return_value + 1;
 		}
 		IRV.return_type = Register;
 		IRV.return_value = start_point + 2; //逻辑land拆解为三部，先两边分别和0取neq再and
@@ -575,8 +659,8 @@ void LAndExpAST::Dump_IR(char* IR) const {
 		eqexp->Dump_IR(IR);
 	}
 	else if (flag == 1) {
-		eqexp->Dump_IR(IR);
 		landexp->Dump_IR(IR);
+		eqexp->Dump_IR(IR);
 		std::string temp_IR = "  " + IRV.get_IR_value(-2) + " = ne " + landexp->IRV.get_IR_value() + ", 0\n";
 		temp_IR += "  " + IRV.get_IR_value(-1) + " = ne " + eqexp->IRV.get_IR_value() + ", 0\n";
 		temp_IR += "  " + IRV.get_IR_value(0) + " = and " + IRV.get_IR_value(-2) + ", " + IRV.get_IR_value(-1) + "\n";
@@ -600,16 +684,17 @@ void LOrExpAST::Set_IRV(int start_point) {
 	}
 
 	else if (flag == 1) {
-		landexp->Set_IRV(start_point);
-		if (landexp->IRV.return_type == Register) {
-			start_point = landexp->IRV.return_value + 1;
-		}
 		lorexp->Set_IRV(start_point);
 		if (lorexp->IRV.return_type == Register) {
 			start_point = lorexp->IRV.return_value + 1;
 		}
+		landexp->Set_IRV(start_point);
+		if (landexp->IRV.return_type == Register) {
+			start_point = landexp->IRV.return_value + 1;
+		}
+
 		IRV.return_type = Register;
-		IRV.return_value = start_point + 1;// 用位运算拼凑
+		IRV.return_value = start_point + 1;// 用位运算拼凑 多使用一次寄存器
 	}
 }
 
@@ -618,8 +703,8 @@ void LOrExpAST::Dump_IR(char* IR) const {
 		landexp->Dump_IR(IR);
 	}
 	else if (flag == 1) {
-		landexp->Dump_IR(IR);
 		lorexp->Dump_IR(IR);
+		landexp->Dump_IR(IR);
 		std::string temp_IR = "  " + IRV.get_IR_value(-1) + " = ";
 		temp_IR += "or ";
 		temp_IR += (lorexp->IRV.get_IR_value() + ", " + landexp->IRV.get_IR_value() + "\n");

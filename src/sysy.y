@@ -52,7 +52,7 @@ using namespace std;
 // 非终结符的类型定义 所有的非终结符都改成ast类型
 %type <ast_val> FuncDef FuncType Block BlockItem BlockItemVec ConstDefVec
 %type <ast_val> Stmt Exp PrimaryExp UnaryExp UnaryOp AddExp MulExp AddOp MulOp LOrExp LAndExp EqExp RelExp EqOp RelOp ConstExp 
-%type <ast_val> Decl ConstDecl BType ConstDef ConstInitVal LVal VarDecl VardefVec Vardef InitVal
+%type <ast_val> Decl ConstDecl BType ConstDef ConstInitVal LVal VarDecl VarDefVec VarDef InitVal
 %type <int_val> Number //number我们这里是定义为int类型的
 
 %%
@@ -145,16 +145,21 @@ BlockItem
     $$ = blockitem;
   };
 
-Decl 
-  :ConstDecl
-  {
+Decl
+  :ConstDecl{
     auto decl = new DeclAST();
     decl->constdecl = unique_ptr<BaseAST>($1);
     decl->flag=0;
     $$ = decl;
-  };
+  }
+  |VarDecl{
+    auto decl = new DeclAST();
+    decl->vardecl = unique_ptr<BaseAST>($1);
+    decl->flag = 1;
+    $$ = decl;
+  }
 
-ConstDecl //not sure
+ConstDecl
   : CONST BType ConstDefVec ';'
   {
     auto constdecl = new ConstDeclAST();
@@ -221,23 +226,63 @@ ConstExp
   };
 
 
+VarDecl
+  : BType VarDefVec ';'{
+    auto vardecl = new VarDeclAST();
+    vardecl->btype = unique_ptr<BaseAST>($1);
+    vardecl->vardefvec = unique_ptr<BaseAST>($2);
+    $$ = vardecl;
+  };
+
+VarDefVec
+  : VarDefVec ',' VarDef{
+    auto vardefvec = $1;
+    dynamic_cast<VarDefVecAST&>(*vardefvec).itemvec.push_back(unique_ptr<BaseAST>($3));
+    $$ = vardefvec;
+  }
+  | VarDef{
+    auto vardefvec = new VarDefVecAST();
+    vardefvec->itemvec.push_back(unique_ptr<BaseAST>($1));
+    $$ = vardefvec;
+  };
+
+VarDef
+  : IDENT{
+    auto vardef = new VarDefAST();
+    vardef->flag = 0;
+    vardef->ident = *unique_ptr<string>($1);
+    $$ = vardef;
+  }
+  | IDENT '=' InitVal{
+    auto vardef = new VarDefAST();
+    vardef->flag = 1;
+    vardef->ident = *unique_ptr<string>($1);
+    vardef->initval = unique_ptr<BaseAST>($3);
+    $$ = vardef;
+  };
+
+InitVal
+  : Exp{
+    auto initval = new InitValAST();
+    initval->exp = unique_ptr<BaseAST>($1);
+    $$ = initval;
+  };
+
+
 Stmt
-  : RETURN Exp ';' 
-  {
+  : RETURN Exp ';' {
     auto stmt = new StmtAST();
     stmt->flag = 0; // 表示return一个exp这种的分解方式
     stmt->exp = unique_ptr<BaseAST>($2);
     $$ = stmt;
   }
-  | LVal '=' Exp ';'
-  {
+  | LVal '=' Exp ';'{
     auto stmt = new StmtAST();
     stmt->flag = 1;
     stmt->lval = unique_ptr<BaseAST>($1);
     stmt->exp = unique_ptr<BaseAST>($3);
     $$ = stmt;
-  }
-  ;
+  };
 
 
 Exp 

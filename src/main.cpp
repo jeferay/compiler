@@ -15,54 +15,54 @@ using namespace std;
 // 其次, 因为这个文件不是我们自己写的, 而是被 Bison 生成出来的
 // 你的代码编辑器/IDE 很可能找不到这个文件, 然后会给你报错 (虽然编译不会出错)
 // 看起来会很烦人, 于是干脆采用这种看起来 dirty 但实际很有效的手段
-extern FILE *yyin;
-extern int yyparse(std::unique_ptr<BaseAST> &ast);
+extern FILE* yyin;
+extern int yyparse(std::unique_ptr<BaseAST>& ast);
 
 
 
-int main(int argc, const char *argv[]) {
-  // 解析命令行参数. 测试脚本/评测平台要求你的编译器能接收如下参数:
-  // compiler 模式 输入文件 -o 输出文件
-  assert(argc == 5);
-  auto mode = argv[1];
-  auto input = argv[2];
-  auto output = argv[4];
-  
+int main(int argc, const char* argv[]) {
+	// 解析命令行参数. 测试脚本/评测平台要求你的编译器能接收如下参数:
+	// compiler 模式 输入文件 -o 输出文件
+	assert(argc == 5);
+	auto mode = argv[1];
+	auto input = argv[2];
+	auto output = argv[4];
 
-  // 打开输入文件, 并且指定 lexer 在解析的时候读取这个文件
-  yyin = fopen(input, "r");
-  assert(yyin);
 
-  // 调用 parser 函数, parser 函数会进一步调用 lexer 解析输入文件的
-  unique_ptr<BaseAST> ast;
-  auto ret = yyparse(ast);
-  assert(!ret);
+	// 打开输入文件, 并且指定 lexer 在解析的时候读取这个文件
+	yyin = fopen(input, "r");
+	assert(yyin);
 
-  // 输出解析得到的 AST, 其实就是个字符串,这里改成了利用dump输出对应结构
-  // char AST[1024]={0};
-  // ast->Dump(AST);
-  // cout<<AST<<endl;
+	// 调用 parser 函数, parser 函数会进一步调用 lexer 解析输入文件的
+	unique_ptr<BaseAST> ast;
+	auto ret = yyparse(ast);
+	assert(!ret);
 
-  // // 输出解析得到的 Koopa IR
-  
-  char IR[1024]={0};
-  ast->set_symbol_table();
-  static_cast<CompUnitAST&>(*ast).output_symbol_table();
-  ast->Set_IRV(0);//在外部提前set好 start point =0
-  ast->Dump_IR(IR);
-  cout<<IR<<endl;
+	// 输出解析得到的 AST, 其实就是个字符串,这里改成了利用dump输出对应结构
+	// char AST[1024]={0};
+	// ast->Dump(AST);
+	// cout<<AST<<endl;
 
-  char RiscV[1024] = {0};
-  // KoopaIR_2_RiscV(IR,RiscV);
-  // cout<<RiscV<<endl;
+	// // 输出解析得到的 Koopa IR
 
-  freopen(output, "w", stdout);
-  if(!strcmp(mode,"-koopa"))
-    std::cout<<IR<<endl;
-  else if (!strcmp(mode,"-riscv"))
-    std::cout<<RiscV<<endl;
-  fclose(stdout);
+	char IR[1024] = { 0 };
+	ast->set_symbol_table(); // 先于set irv
+	static_cast<CompUnitAST&>(*ast).output_symbol_table();
+	ast->Set_IRV(0);//在外部提前set好 start point =0
+	ast->Dump_IR(IR);
+	cout<<IR<<endl;
 
-  return 0;
+	char RiscV[1024] = { 0 };
+	// KoopaIR_2_RiscV(IR,RiscV);
+	// cout<<RiscV<<endl;
+
+	freopen(output, "w", stdout);
+	if(!strcmp(mode,"-koopa"))
+	  std::cout<<IR<<endl;
+	else if (!strcmp(mode,"-riscv"))
+	  std::cout<<RiscV<<endl;
+	fclose(stdout);
+
+	return 0;
 }
 

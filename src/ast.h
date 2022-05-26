@@ -15,6 +15,9 @@ using namespace std;
 #define Integer 0
 #define Register 1
 
+#define ConstVar 0 
+#define Var 1
+
 // 新建一个用于IR指令返回值
 typedef struct IR_Ins_Value
 {
@@ -47,29 +50,40 @@ typedef struct IR_Ins_Value
 
 }IR_Ins_Value;
 
+typedef struct Varient {
+	int tag;
+	int value;
+	Varient() :tag(-1), value(0) {}
+	friend std::ostream& operator<<(std::ostream& out, Varient& st) {
+		out << "tag" << st.tag << "value" << st.value << endl;
+    return out;
+	}
+	Varient(int _tag, int _value) :tag(_tag), value(_value) {}
+}Varient;
+
 typedef struct SymbolTable {
 public:
-	std::map<std::string, int> pair_map;
+	std::map<std::string, Varient> pair_map;
 	SymbolTable() {
 		pair_map.clear();
 	}
-	int insert(std::string key, int value) {
-		pair_map.insert(std::pair<std::string, int>(key, value));
-		return true;
+	void insert(std::string key, int tag, int value) {
+		pair_map.insert(std::pair<std::string, Varient>(key, Varient(tag, value)));
 	}
-	int find(std::string key) {
-		std::map<std::string, int> ::iterator l_it = pair_map.find(key);
+	void insert(std::string key, Varient v) {
+		pair_map.insert(std::pair<std::string, Varient>(key, v));
+	}
+	Varient find(std::string key) {
+		std::map<std::string, Varient> ::iterator l_it = pair_map.find(key);
 		return l_it->second;
 	}
 	friend std::ostream& operator<<(std::ostream& out, SymbolTable& st) {
 		for (auto iter = st.pair_map.begin(); iter != st.pair_map.end(); iter++) {
-			std::cout << iter->first << " " << iter->second << "\n";
+			out << iter->first << " " << iter->second << "\n";
 		}
 		return out;
 	}
 }SymbolTable;
-
-
 
 
 // 所有 AST 的基类，我们可以理解为一个节点，可以是叶节点或者内部节点，如果是叶节点表示终结符
@@ -80,11 +94,12 @@ public:
 
 	BaseAST() :flag(-1) {}
 	virtual ~BaseAST() {};
+
 	virtual void  Dump_IR(char* IR) const {};
 	virtual void  Set_IRV(int start_point) {};// 有个start point的参数作为第一次分配寄存器的开始列表
 	virtual int calculate() { assert(false); return 0; };
 	virtual void set_symbol_table() {};
-	virtual int lookup_table() { assert(false); return 0; };
+	virtual Varient lookup_table() { assert(false); return Varient(); };
 };
 
 class CompUnitAST : public BaseAST {
@@ -145,20 +160,22 @@ public:
 	virtual void Set_IRV(int start_point) override;
 };
 
-// Decl::=ConstDecl
+// Decl::=ConstDecl|VarDecl
 class DeclAST : public BaseAST {
 public:
 	std::unique_ptr<BaseAST> constdecl;
+	std::unique_ptr<BaseAST> vardecl;
 	virtual void Dump_IR(char* IR) const override;
 	virtual void set_symbol_table() override;
+	virtual void Set_IRV(int start_point) override;
+
 };
 
-// COnstDecl::="const" BType ConstDefVec ';'
+// COnstDecl::="const" BType ConstDefVec ';' const的定义不需要irv设定或者dumpir
 class ConstDeclAST : public BaseAST {
 public:
 	std::unique_ptr<BaseAST> btype;
-	std::unique_ptr<BaseAST> constdefvec;
-	virtual void Dump_IR(char* IR) const override;
+	std::unique_ptr<BaseAST> constdefvec;     
 	virtual void set_symbol_table() override;
 };
 
@@ -181,7 +198,7 @@ class ConstDefAST : public BaseAST {
 public:
 	std::string ident;
 	std::unique_ptr<BaseAST> constinitval;
-	int calculate() override;
+	int calculate() override; // 每个constdefast开始可能用到calculate，保证一定是常量计算
 	void set_symbol_table() override;
 
 };
@@ -197,7 +214,8 @@ public:
 class LValAST : public BaseAST {
 public:
 	std::string ident;
-	int lookup_table();
+	virtual Varient lookup_table()override;
+	virtual void Set_IRV(int start_point)override;
 };
 
 // ConstExp ::= Exp
@@ -208,41 +226,45 @@ public:
 };
 
 // VarDecl::=Btype VarDefVec ';'
-class VarDecl : public BaseAST {
+class VarDeclAST : public BaseAST {
 public:
 	std::unique_ptr<BaseAST> btype;
 	std::unique_ptr<BaseAST> vardefvec;
+	virtual void Set_IRV(int start_point) override;
 	virtual void Dump_IR(char* IR) const override;
 	virtual void set_symbol_table() override;
 };
 
 //VarDefVec::=VarDefVec ',' VarDef | VarDef
-class VarDefVec : public BaseAST {
+class VarDefVecAST : public BaseAST {
 public:
 	std::vector<std::unique_ptr<BaseAST>> itemvec;
+	virtual void Set_IRV(int start_point) override;
 	virtual void Dump_IR(char* IR) const override;
 	virtual void set_symbol_table() override;
+
 };
 
 // VarDef::=IDENT|IDENT '=' InitVal
-class VarDef : public BaseAST {
+class VarDefAST : public BaseAST {
 public:
 	std::string ident;
 	std::unique_ptr<BaseAST> initval;
+	virtual void Set_IRV(int start_point) override;
 	virtual void Dump_IR(char* IR) const override;
 	virtual void set_symbol_table() override;
 };
 
 // InitVal::=Exp
-class InitVal :public BaseAST {
+class InitValAST :public BaseAST {
 public:
 	std::unique_ptr<BaseAST> exp;
 	virtual void Dump_IR(char* IR) const override;
-	virtual void set_symbol_table() override;
+	virtual void Set_IRV(int start_point) override;
 };
 
 
-// StmtAST::= RETURN Exp ';' | RETURN LVal ';' | Lval '=' Exp ';'
+// StmtAST::= RETURN Exp ';'| Lval '=' Exp ';'
 class StmtAST : public BaseAST {
 public:
 	std::unique_ptr<BaseAST> exp;
