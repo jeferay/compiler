@@ -27,7 +27,7 @@ void CompUnitAST::set_symbol_table() {
 }
 
 void CompUnitAST::output_symbol_table() {
-	cout << symbol_table << endl;
+	cout <<"output symbol table\n"<< symbol_table << endl;
 }
 void FuncDefAST::Set_IRV(int start_point) {
 	block->Set_IRV(start_point);
@@ -51,7 +51,7 @@ void FuncTypeAST::Dump_IR(char* IR) const {
 	}
 }
 
-FuncTypeAST::FuncTypeAST(string _type):type(_type) {}
+FuncTypeAST::FuncTypeAST(string _type) :type(_type) {}
 FuncTypeAST::FuncTypeAST() {}
 
 // BlockAST::='{' '}'|'{' BlockItemVec '}'
@@ -134,9 +134,7 @@ void DeclAST::set_symbol_table() {
 }
 
 void DeclAST::Dump_IR(char* IR) const {
-	if (flag == 0) {
-		constdecl->Dump_IR(IR);
-	}
+	if (flag == 0) {}// const定义不用dump
 }
 
 
@@ -203,6 +201,9 @@ void StmtAST::Dump_IR(char* IR) const {
 		else if (IRV.return_type == Register) {
 			strcat(IR, const_cast<char*>(("%" + std::to_string(IRV.return_value) + "\n").c_str()));
 		}
+	}
+	else if (flag == 1) {
+		strcat(IR, const_cast<char*>(("  ret " + std::to_string(lval->lookup_table()) + "\n").c_str()));
 	}
 }
 
@@ -426,7 +427,7 @@ void MulExpAST::Dump_IR(char* IR) const {
 
 // RelExp ::= AddExp | RelExp ("<" | ">" | "<=" | ">=") AddExp;
 int RelExpAST::calculate() {
-	if (flag == 0) return addexp->flag;
+	if (flag == 0) return addexp->calculate();
 	if (flag == 1) {
 		switch (relop->flag)
 		{
