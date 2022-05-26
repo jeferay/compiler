@@ -35,7 +35,8 @@ using namespace std;
 
 %union {
   BaseAST *ast_val;
-  
+  BlockItemVecAST *blockvecast_val;
+  ConstDefVecAST *constvecast_val;
   std::string *str_val;
   int int_val;
 }
@@ -44,14 +45,14 @@ using namespace std;
 // lexer 返回的所有 token 种类的声明
 // 注意 IDENT 和 INT_CONST 会返回 token 的值, 分别对应 str_val 和 int_val
 // 不指定类型, 不返回对应token值
-%token INT RETURN PLUS MINUS SEQZ MUL DIV MOD LT GT LE GE EQ NEQ LOR LAND
+%token INT RETURN PLUS MINUS SEQZ MUL DIV MOD LT GT LE GE EQ NEQ LOR LAND CONST
 %token <str_val> IDENT
 %token <int_val> INT_CONST
 
 // 非终结符的类型定义 所有的非终结符都改成ast类型
-%type <ast_val> FuncDef FuncType Block BlockItem BlockItemVec
+%type <ast_val> FuncDef FuncType Block BlockItem BlockItemVec ConstDefVec
 %type <ast_val> Stmt Exp PrimaryExp UnaryExp UnaryOp AddExp MulExp AddOp MulOp LOrExp LAndExp EqExp RelExp EqOp RelOp ConstExp 
-%type <ast_val> Decl ConstDecl BType ConstDefVec ConstDef ConstInitVal LVal 
+%type <ast_val> Decl ConstDecl BType ConstDef ConstInitVal LVal 
 %type <int_val> Number //number我们这里是定义为int类型的
 
 %%
@@ -99,7 +100,7 @@ FuncType
   };
 
 
-Block // not sure
+Block
   :'{' '}'
   {
     auto block = new BlockAST();
@@ -115,10 +116,10 @@ Block // not sure
   };
 
 BlockItemVec
-  :BlockItemVec BlockItem
+  :BlockItemVec BlockItem 
   {
-    auto blockitemvec = static_cast<BlockItemVecAST*>($1);
-    blockitemvec->itemvec.push_back(unique_ptr<BaseAST>($2));
+    auto blockitemvec = $1;
+    dynamic_cast<BlockItemVecAST&>(*blockitemvec).itemvec.push_back(unique_ptr<BaseAST>($2));
     $$ = blockitemvec;
   }
   | BlockItem
@@ -154,7 +155,7 @@ Decl
   };
 
 ConstDecl //not sure
-  : "const" BType ConstDefVec ';'
+  : CONST BType ConstDefVec ';'
   {
     auto constdecl = new ConstDeclAST();
     constdecl->btype = unique_ptr<BaseAST>($2);
@@ -164,7 +165,7 @@ ConstDecl //not sure
 
 
 BType
-  : "int"{
+  : INT {
     auto btype = new BtypeAST();
     btype->flag=0;
     $$ = btype;
@@ -173,8 +174,8 @@ BType
 ConstDefVec
   :ConstDefVec ',' ConstDef
   {
-    auto constdefvec = static_cast<ConstDefVecAST*>($1);
-    constdefvec->itemvec.push_back(unique_ptr<BaseAST>($3));
+    auto constdefvec = $1;
+    dynamic_cast<ConstDefVecAST&>(*constdefvec).itemvec.push_back(unique_ptr<BaseAST>($3));
     $$ = constdefvec;
   }
   | ConstDef

@@ -1,5 +1,5 @@
 int main() {
-  int a = 0;
+  const int a = 3;
   return a;
 }
 /*

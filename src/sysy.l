@@ -53,6 +53,7 @@ Hexadecimal   0[xX][0-9a-fA-F]+
 "!="            { yylval.str_val = new string(yytext); return NEQ; }
 "||"            { yylval.str_val = new string(yytext); return LOR; }
 "&&"            { yylval.str_val = new string(yytext); return LAND; }
+"const"         { yylval.str_val = new string(yytext); return CONST; }
 
 
 

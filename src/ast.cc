@@ -14,18 +14,21 @@ using namespace std;
 
 SymbolTable symbol_table;
 
-void CompUnitAST::Set_IRV (int start_point) {
-    func_def->Set_IRV(start_point);
+void CompUnitAST::Set_IRV(int start_point) {
+	func_def->Set_IRV(start_point);
 }
 
-void CompUnitAST::Dump_IR (char * IR) const {
-    func_def->Dump_IR(IR);
+void CompUnitAST::Dump_IR(char* IR) const {
+	func_def->Dump_IR(IR);
 }
 
 void CompUnitAST::set_symbol_table() {
-    func_def->set_symbol_table();
+	func_def->set_symbol_table();
 }
 
+void CompUnitAST::output_symbol_table() {
+	cout << symbol_table << endl;
+}
 void FuncDefAST::Set_IRV(int start_point) {
 	block->Set_IRV(start_point);
 }
@@ -34,7 +37,7 @@ void FuncDefAST::set_symbol_table() {
 	block->set_symbol_table();
 }
 
-void FuncDefAST::Dump_IR(char* IR) const{
+void FuncDefAST::Dump_IR(char* IR) const {
 	strcat(IR, "fun @");
 	strcat(IR, const_cast<char*>(ident.c_str()));
 	strcat(IR, "(): ");
@@ -42,13 +45,14 @@ void FuncDefAST::Dump_IR(char* IR) const{
 	block->Dump_IR(IR);
 }
 
-
 void FuncTypeAST::Dump_IR(char* IR) const {
 	if (type == "int") {
 		strcat(IR, "i32 ");
 	}
 }
 
+FuncTypeAST::FuncTypeAST(string _type):type(_type) {}
+FuncTypeAST::FuncTypeAST() {}
 
 // BlockAST::='{' '}'|'{' BlockItemVec '}'
 void BlockAST::Set_IRV(int start_point) {
@@ -57,12 +61,12 @@ void BlockAST::Set_IRV(int start_point) {
 	}
 }
 
-void BlockAST::set_symbol_table(){
+void BlockAST::set_symbol_table() {
 	if (flag == 1) {
 		blockitemvec->set_symbol_table();
 	}
 }
-void BlockAST::Dump_IR(char* IR) const{
+void BlockAST::Dump_IR(char* IR) const {
 	strcat(IR, "{\n\%entry:\n");
 	if (flag == 1) {
 		blockitemvec->Dump_IR(IR);
@@ -71,10 +75,25 @@ void BlockAST::Dump_IR(char* IR) const{
 }
 
 //BlockItemVec::=BlockItemVec BlockItem | BlockItem
-void BlockItemVecAST::set_symbol_table(){
+void BlockItemVecAST::set_symbol_table() {
 	for (int i = 0; i < itemvec.size(); i++) {
-	  itemvec[i]->set_symbol_table();
+		itemvec[i]->set_symbol_table();
 	}
+}
+
+void BlockItemVecAST::Dump_IR(char* IR) const {
+	for (int i = 0; i < itemvec.size(); i++) {
+		itemvec[i]->Dump_IR(IR);
+	}
+}
+
+void BlockItemVecAST::Set_IRV(int start_point) {
+	int i = 0;
+	for (i = 0; i < itemvec.size(); i++) {
+		itemvec[i]->Set_IRV(start_point);
+		start_point = itemvec[i]->IRV.return_value + 1;
+	}
+	IRV = itemvec[i - 1]->IRV;
 }
 
 
@@ -86,6 +105,26 @@ void BlockItemAST::set_symbol_table() {
 	}
 }
 
+void BlockItemAST::Dump_IR(char* IR) const {
+	if (flag == 0) {
+		decl->Dump_IR(IR);
+	}
+	else if (flag == 1) {
+		stmt->Dump_IR(IR);
+	}
+}
+void BlockItemAST::Set_IRV(int start_point) {
+	if (flag == 0) {
+		decl->Set_IRV(start_point);
+		IRV = decl->IRV;
+	}
+	else if (flag == 1) {
+		stmt->Set_IRV(start_point);
+		IRV = stmt->IRV;
+	}
+}
+
+
 
 // Decl::=ConstDecl
 void DeclAST::set_symbol_table() {
@@ -94,16 +133,28 @@ void DeclAST::set_symbol_table() {
 	}
 }
 
+void DeclAST::Dump_IR(char* IR) const {
+	if (flag == 0) {
+		constdecl->Dump_IR(IR);
+	}
+}
+
+
+
 // ConstDecl::="const" BType ConstDefVec ';'
 void ConstDeclAST::set_symbol_table() {
 	constdefvec->set_symbol_table();
+}
+
+void ConstDeclAST::Dump_IR(char* IR) const {
+	return;//似乎不需要输出IR，只需要在符号表里记录
 }
 
 
 // ConstDefVec::= ConstDefVec ',' ConstDef | ConstDef
 
 void ConstDefVecAST::set_symbol_table() {
-	for (int i = 0; i<itemvec.size(); i++) {
+	for (int i = 0; i < itemvec.size(); i++) {
 		itemvec[i]->set_symbol_table();
 	}
 }
@@ -185,7 +236,7 @@ int UnaryExpAST::calculate() {
 		}
 	}
 }
-void UnaryExpAST ::Set_IRV(int start_point) {
+void UnaryExpAST::Set_IRV(int start_point) {
 	if (IRV.return_type != -1) return;
 	if (flag == 0) {
 		primaryexp->Set_IRV(start_point); // 下层一定要先递归set之后才轮到下层
@@ -210,7 +261,7 @@ void UnaryExpAST ::Set_IRV(int start_point) {
 	}
 
 }
-void UnaryExpAST::Dump_IR(char* IR) const{
+void UnaryExpAST::Dump_IR(char* IR) const {
 	// Set_IRV(); // 总是要先set irv
 	if (flag == 0) {
 		primaryexp->Dump_IR(IR);
@@ -257,7 +308,7 @@ int PrimaryExpAST::calculate() {
 	if (flag == 1) return number;
 	if (flag == 2) return lval->lookup_table();
 }
-void PrimaryExpAST::Set_IRV(int start_point){
+void PrimaryExpAST::Set_IRV(int start_point) {
 	if (IRV.return_type != -1) return;
 	if (flag == 0) {
 		exp->Set_IRV(start_point);
@@ -269,9 +320,9 @@ void PrimaryExpAST::Set_IRV(int start_point){
 		IRV.return_value = number;
 	}
 }
-void PrimaryExpAST::Dump_IR(char* IR) const{
+void PrimaryExpAST::Dump_IR(char* IR) const {
 	// Set_IRV(); // 结构已经完全推断，可以直接set
-	if (flag == 0){
+	if (flag == 0) {
 		exp->Dump_IR(IR);
 	}
 }
@@ -382,7 +433,7 @@ int RelExpAST::calculate() {
 		case 0: return relexp->calculate() < addexp->calculate(); break;
 		case 1: return relexp->calculate() > addexp->calculate(); break;
 		case 2: return relexp->calculate() <= addexp->calculate(); break;
-		case 3: return relexp-> calculate() >= addexp->calculate(); break;
+		case 3: return relexp->calculate() >= addexp->calculate(); break;
 		}
 	}
 }

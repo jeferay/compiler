@@ -47,12 +47,12 @@ int main(int argc, const char *argv[]) {
   
   char IR[1024]={0};
   ast->set_symbol_table();
-  // cout<<symbol_table;
+  static_cast<CompUnitAST&>(*ast).output_symbol_table();
   ast->Set_IRV(0);//在外部提前set好 start point =0
-  // ast->Dump_IR(IR);
+  ast->Dump_IR(IR);
   // cout<<IR<<endl;
 
-  // char RiscV[1024] = {0};
+  char RiscV[1024] = {0};
   // KoopaIR_2_RiscV(IR,RiscV);
   // cout<<RiscV<<endl;
 
