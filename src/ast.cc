@@ -12,6 +12,9 @@ using namespace std;
 #define Integer 0
 #define Register 1
 
+#define ConstVal 0
+#define Val 1
+
 SymbolTable symbol_table;
 
 void CompUnitAST::Set_IRV(int start_point) {
@@ -27,7 +30,7 @@ void CompUnitAST::set_symbol_table() {
 }
 
 void CompUnitAST::output_symbol_table() {
-	cout <<"output symbol table\n"<< symbol_table << endl;
+	cout << "output symbol table\n" << symbol_table << endl;
 }
 void FuncDefAST::Set_IRV(int start_point) {
 	block->Set_IRV(start_point);
@@ -191,6 +194,7 @@ void StmtAST::Set_IRV(int start_point) {
 	}
 }
 void StmtAST::Dump_IR(char* IR) const {
+	// return exp
 	if (flag == 0) {
 		exp->Dump_IR(IR);
 		strcat(IR, "  ret ");
@@ -204,6 +208,9 @@ void StmtAST::Dump_IR(char* IR) const {
 	}
 	else if (flag == 1) {
 		strcat(IR, const_cast<char*>(("  ret " + std::to_string(lval->lookup_table()) + "\n").c_str()));
+	}
+	else if (flag == 2) {
+
 	}
 }
 
@@ -303,7 +310,7 @@ void UnaryExpAST::Dump_IR(char* IR) const {
 
 }
 
-// PrimaryExp ::= "(" Exp ")" | Number| LVal not yet
+// PrimaryExp ::= "(" Exp ")" | Number| LVal
 int PrimaryExpAST::calculate() {
 	if (flag == 0) return exp->calculate();
 	if (flag == 1) return number;
@@ -311,15 +318,22 @@ int PrimaryExpAST::calculate() {
 }
 void PrimaryExpAST::Set_IRV(int start_point) {
 	if (IRV.return_type != -1) return;
+	switch (flag){
+	case 0:exp->Set_IRV(start_point); IRV = exp->IRV; break;
+	case 1:IRV.return_type = Integer; IRV.return_value = number; break;
+	case 2:lval->Set_IRV(start_point);
+	default:
+		break;
+	}
 	if (flag == 0) {
 		exp->Set_IRV(start_point);
 		IRV = exp->IRV; // 保持一致
 	}
-	else if (flag == 1)
-	{
+	else if (flag == 1){
 		IRV.return_type = Integer;
 		IRV.return_value = number;
 	}
+	
 }
 void PrimaryExpAST::Dump_IR(char* IR) const {
 	// Set_IRV(); // 结构已经完全推断，可以直接set

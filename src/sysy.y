@@ -52,7 +52,7 @@ using namespace std;
 // 非终结符的类型定义 所有的非终结符都改成ast类型
 %type <ast_val> FuncDef FuncType Block BlockItem BlockItemVec ConstDefVec
 %type <ast_val> Stmt Exp PrimaryExp UnaryExp UnaryOp AddExp MulExp AddOp MulOp LOrExp LAndExp EqExp RelExp EqOp RelOp ConstExp 
-%type <ast_val> Decl ConstDecl BType ConstDef ConstInitVal LVal 
+%type <ast_val> Decl ConstDecl BType ConstDef ConstInitVal LVal VarDecl VardefVec Vardef InitVal
 %type <int_val> Number //number我们这里是定义为int类型的
 
 %%
@@ -229,17 +229,10 @@ Stmt
     stmt->exp = unique_ptr<BaseAST>($2);
     $$ = stmt;
   }
-  | RETURN LVal ';'
-  {
-    auto stmt = new StmtAST();
-    stmt->flag = 1;
-    stmt->lval = unique_ptr<BaseAST>($2);
-    $$ = stmt;
-  }
   | LVal '=' Exp ';'
   {
     auto stmt = new StmtAST();
-    stmt->flag = 2;
+    stmt->flag = 1;
     stmt->lval = unique_ptr<BaseAST>($1);
     stmt->exp = unique_ptr<BaseAST>($3);
     $$ = stmt;

@@ -207,6 +207,41 @@ public:
 	int calculate() override;
 };
 
+// VarDecl::=Btype VarDefVec ';'
+class VarDecl : public BaseAST {
+public:
+	std::unique_ptr<BaseAST> btype;
+	std::unique_ptr<BaseAST> vardefvec;
+	virtual void Dump_IR(char* IR) const override;
+	virtual void set_symbol_table() override;
+};
+
+//VarDefVec::=VarDefVec ',' VarDef | VarDef
+class VarDefVec : public BaseAST {
+public:
+	std::vector<std::unique_ptr<BaseAST>> itemvec;
+	virtual void Dump_IR(char* IR) const override;
+	virtual void set_symbol_table() override;
+};
+
+// VarDef::=IDENT|IDENT '=' InitVal
+class VarDef : public BaseAST {
+public:
+	std::string ident;
+	std::unique_ptr<BaseAST> initval;
+	virtual void Dump_IR(char* IR) const override;
+	virtual void set_symbol_table() override;
+};
+
+// InitVal::=Exp
+class InitVal :public BaseAST {
+public:
+	std::unique_ptr<BaseAST> exp;
+	virtual void Dump_IR(char* IR) const override;
+	virtual void set_symbol_table() override;
+};
+
+
 // StmtAST::= RETURN Exp ';' | RETURN LVal ';' | Lval '=' Exp ';'
 class StmtAST : public BaseAST {
 public:
