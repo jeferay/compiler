@@ -1,0 +1,6 @@
+fun @main(): i32 {
+%entry:
+  %%0 = sub 0, 0
+  ret %0
+}
+

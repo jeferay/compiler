@@ -26,6 +26,10 @@ typedef struct IR_Ins_Value
 	int return_value;
 	IR_Ins_Value() :return_type(-1), return_value(0) {}
 	//重载一下等于号
+	void set_value(int r_type, int r_value) {
+		return_type = r_type;
+		return_value = r_value;
+	}
 	IR_Ins_Value& operator=(const IR_Ins_Value& a) {
 		return_type = a.return_type;
 		return_value = a.return_value;
@@ -53,93 +57,79 @@ typedef struct Varient {
 	std::string name;
 	int tag;
 	int value;//如果tag是Const则value就是具体值，如果是Var就放置编号
-	Varient() :name(" "), tag(-1), value(-1) {}
+	Varient() :name(" "), tag(-1), value(-1){}
 	friend std::ostream& operator<<(std::ostream& out, Varient& st) {
 		out << "name " << st.name << " tag " << st.tag << " value" << st.value << endl;
 		return out;
 	}
-	Varient(std::string _name, int _tag, int _value) :name(_name), tag(_tag), value(_value) {}
+	//无论是常量还是变量都只有在声明后才设置为alive
+	Varient(std::string _name, int _tag, int _value) :name(_name), tag(_tag), value(_value){}
 	Varient& operator=(const Varient& a) {
 		name = a.name;
 		tag = a.tag;
 		value = a.value;
 		return *this;
 	}
-	string get_str_value(int multi_def = false) {
+
+	string get_str_value() {
 		if (tag == ConstVar) {
 			return std::to_string(value);
 		}
 		else if (tag == Var) {
-			if (multi_def) return "@" + name + "_" + std::to_string(value);
-			else return "@" + name;
+			return "@" + name + "_" + std::to_string(value);
 		}
+    return "should not be here";
 	}
+  
 }Varient;
 
 // 每一个ast都包含一个对应层次的symboltable，里面仅存放当前层数的 not yet
-typedef struct SymbolTable {
+class SymbolTable {
 public:
-	std::map<std::string, Varient> pair_map;
-	std::shared_ptr<SymbolTable> pre;
-	std::vector<shared_ptr<SymbolTable>>sons;
-	SymbolTable() {
-		pair_map.clear();
-		pre = nullptr;
-		sons.clear();
-	}
+	std::map<std::string, Varient> varient_pair_map;
+	std::shared_ptr<SymbolTable> pre_table;
+
+	static std::map<std::string, int> var_id;//保存所有变量的id，共享
+
+	SymbolTable(std::shared_ptr<SymbolTable> _pre):pre_table(_pre) {}
+
 	// 按照tag来insert
 	void insert(std::string key, int tag, int value) {
 		if (tag == ConstVar) {
-			pair_map.insert(std::pair<std::string, Varient>(key, Varient(key, tag, value)));
+			varient_pair_map.insert(std::pair<std::string, Varient>(key, Varient(key, tag, value)));
 		}
 		else if (tag == Var) {
-			value = search_latest_sub_tree(get_root(), key) + 1;
-			pair_map.insert(std::pair<std::string, Varient>(key, Varient(key, tag, value)));
+			if (var_id.find(key) == var_id.end()) {
+				value = 0;
+				var_id.insert(std::pair<std::string, int>(key, 0));
+			}
+			else {
+				value = var_id.find(key)->second + 1;
+				var_id[key] = value;
+			}
+			varient_pair_map.insert(std::pair<std::string, Varient>(key, Varient(key, tag, value)));
 		}
 	}
-
-	Varient search_until_root(std::string key) {
-		std::map<std::string, Varient> ::iterator l_it = pair_map.find(key);
-		if (l_it != pair_map.end()) {
-			return l_it->second;
+	//insert在dump的时候才加入，所以只要在table里面就证明处于alive的周期
+	Varient* search_until_root(std::string key) {
+		std::map<std::string, Varient> ::iterator l_it = varient_pair_map.find(key);
+		if (l_it != varient_pair_map.end()) {
+			return &(l_it->second);
 		}
-		else if (pre != nullptr) {
-			return pre->search_until_root(key);
+		else if (pre_table != nullptr) {
+			return pre_table->search_until_root(key);
 		}
 		assert(false);//一定能搜到，语法正确的情况下
 	}
-	//找到根节点,返回引用
-	SymbolTable& get_root() {
-		if (pre == nullptr) {
-			return *this;
-		}
-		return pre->get_root();
-	}
-	// 搜索子树中编号最大的key，只用于变量标号查询,如果没有则返回0
-	int search_latest_sub_tree(SymbolTable& root, std::string key) {
-		std::map<std::string, Varient> ::iterator l_it = root.pair_map.find(key);
-		int ret_value = 0;
-		if (l_it != root.pair_map.end() && l_it->second.tag == Var) { // 必须是变量才算，该函数只用于变量查询标号
-			ret_value = max(ret_value, l_it->second.value);
-		}
-		for (int i = 0; i < sons.size(); ++i) {
-			ret_value = max(ret_value, search_latest_sub_tree(*sons[i], key));
-		}
-		return ret_value;
-	}
-
-	int multi_def(std::string key) {
-		return (search_latest_sub_tree(get_root(), key) > 1);
-	}
+	
 
 	friend std::ostream& operator<<(std::ostream& out, SymbolTable& st) {
-		for (auto iter = st.pair_map.begin(); iter != st.pair_map.end(); iter++) {
+		for (auto iter = st.varient_pair_map.begin(); iter != st.varient_pair_map.end(); iter++) {
 			out << "key " << iter->first << " " << iter->second << "\n";
 		}
 		return out;
 	}
-
-}SymbolTable;
+};
 
 
 // 所有 AST 的基类，我们可以理解为一个节点，可以是叶节点或者内部节点，如果是叶节点表示终结符
@@ -147,14 +137,12 @@ class BaseAST {
 public:
 	int flag;
 	IR_Ins_Value IRV;
-	std::shared_ptr<SymbolTable> symtable;
-	BaseAST() :flag(-1), symtable(nullptr) {}
+	BaseAST() :flag(-1){}
 	virtual ~BaseAST() {};
 
-	virtual void  Dump_IR(char* IR) const {};
+	virtual void  Dump_IR(char* IR){};
 	virtual void  Set_IRV(int start_point) {};// 有个start point的参数作为第一次分配寄存器的开始列表
 	virtual int calculate() { assert(false); return 0; };
-	virtual void set_symbol_table(std::shared_ptr<SymbolTable> now) {};
 
 };
 
@@ -164,9 +152,7 @@ public:
 	CompUnitAST();
 	virtual ~CompUnitAST() override;
 	virtual void Set_IRV(int start_point) override;
-	virtual void Dump_IR(char* IR) const override;
-	void set_symbol_table(std::shared_ptr<SymbolTable> now) override;
-	void output_symbol_table();
+	virtual void Dump_IR(char* IR) override;
 };
 
 class FuncDefAST : public BaseAST {
@@ -177,8 +163,7 @@ public:
 	FuncDefAST();
 	virtual ~FuncDefAST() override;
 	virtual void Set_IRV(int start_point) override;
-	virtual void set_symbol_table(std::shared_ptr<SymbolTable> now) override;
-	virtual void Dump_IR(char* IR) const override;
+	virtual void Dump_IR(char* IR) override;
 };
 
 // BlockAST::='{' '}'|'{' BlockItemVec '}' //not yet
@@ -188,8 +173,7 @@ public:
 	BlockAST();
 	virtual ~BlockAST() override;
 	virtual void Set_IRV(int start_point) override;
-	virtual void set_symbol_table(std::shared_ptr<SymbolTable> now) override;
-	virtual void Dump_IR(char* IR) const override;
+	virtual void Dump_IR(char* IR) override;
 };
 
 class FuncTypeAST :public BaseAST
@@ -199,7 +183,7 @@ public:
 	FuncTypeAST(std::string _type);
 	FuncTypeAST();
 	~FuncTypeAST() override;
-	virtual void Dump_IR(char* IR) const;
+	virtual void Dump_IR(char* IR) override;
 };
 
 
@@ -210,8 +194,7 @@ public:
 	std::vector<unique_ptr<BaseAST>> itemvec;
 	BlockItemVecAST();
 	virtual ~BlockItemVecAST() override;
-	virtual void set_symbol_table(std::shared_ptr<SymbolTable> now) override;
-	virtual void Dump_IR(char* IR) const override;
+	virtual void Dump_IR(char* IR) override;
 	virtual void Set_IRV(int start_point) override;
 };
 
@@ -222,8 +205,8 @@ public:
 	std::unique_ptr<BaseAST> stmt;
 	BlockItemAST();
 	virtual~BlockItemAST() override;
-	virtual void Dump_IR(char* IR) const override;
-	virtual void set_symbol_table(std::shared_ptr<SymbolTable> now) override;
+	virtual void Dump_IR(char* IR) override;
+	
 	virtual void Set_IRV(int start_point) override;
 };
 
@@ -234,8 +217,8 @@ public:
 	std::unique_ptr<BaseAST> vardecl;
 	DeclAST();
 	virtual ~DeclAST()override;
-	virtual void Dump_IR(char* IR) const override;
-	virtual void set_symbol_table(std::shared_ptr<SymbolTable> now) override;
+	virtual void Dump_IR(char* IR) override;
+	
 	virtual void Set_IRV(int start_point) override;
 
 };
@@ -247,7 +230,8 @@ public:
 	std::unique_ptr<BaseAST> constdefvec;
 	ConstDeclAST();
 	virtual ~ConstDeclAST()override;
-	virtual void set_symbol_table(std::shared_ptr<SymbolTable> now) override;
+	
+	virtual void Dump_IR(char* IR) override;
 };
 
 //Btype::="int"
@@ -264,7 +248,8 @@ public:
 	vector<unique_ptr<BaseAST>> itemvec;
 	ConstDefVecAST();
 	virtual ~ConstDefVecAST() override;
-	virtual void set_symbol_table(std::shared_ptr<SymbolTable> now) override;
+	
+	virtual void Dump_IR(char* IR) override;
 
 };
 
@@ -277,7 +262,7 @@ public:
 	ConstDefAST();
 	virtual ~ConstDefAST() override;
 	int calculate() override; // 每个constdefast开始可能用到calculate，保证一定是常量计算
-	virtual void set_symbol_table(std::shared_ptr<SymbolTable> now) override;
+	virtual void Dump_IR(char* IR) override;
 
 };
 
@@ -297,7 +282,7 @@ public:
 	LValAST();
 	virtual  ~LValAST();
 	virtual void Set_IRV(int start_point)override;
-	virtual void set_symbol_table(std::shared_ptr<SymbolTable> now) override;
+	virtual void Dump_IR(char* IR)override;
 };
 
 // ConstExp ::= Exp
@@ -317,8 +302,7 @@ public:
 	VarDeclAST();
 	virtual  ~VarDeclAST() override;
 	virtual void Set_IRV(int start_point) override;
-	virtual void Dump_IR(char* IR) const override;
-	virtual void set_symbol_table(std::shared_ptr<SymbolTable> now) override;
+	virtual void Dump_IR(char* IR) override;
 };
 
 //VarDefVec::=VarDefVec ',' VarDef | VarDef
@@ -328,9 +312,7 @@ public:
 	VarDefVecAST();
 	virtual ~VarDefVecAST() override;
 	virtual void Set_IRV(int start_point) override;
-	virtual void Dump_IR(char* IR) const override;
-	virtual void set_symbol_table(std::shared_ptr<SymbolTable> now) override;
-
+	virtual void Dump_IR(char* IR) override;
 };
 
 // VarDef::=IDENT|IDENT '=' InitVal
@@ -341,8 +323,7 @@ public:
 	VarDefAST();
 	virtual  ~VarDefAST() override;
 	virtual void Set_IRV(int start_point) override;
-	virtual void Dump_IR(char* IR) const override;
-	virtual void set_symbol_table(std::shared_ptr<SymbolTable> now) override;
+	virtual void Dump_IR(char* IR) override;
 };
 
 // InitVal::=Exp
@@ -351,9 +332,8 @@ public:
 	std::unique_ptr<BaseAST> exp;
 	InitValAST();
 	virtual ~InitValAST() override;
-	virtual void Dump_IR(char* IR) const override;
+	virtual void Dump_IR(char* IR) override;
 	virtual void Set_IRV(int start_point) override;
-	virtual void set_symbol_table(std::shared_ptr<SymbolTable> now) override;
 };
 
 
@@ -367,9 +347,7 @@ public:
 	StmtAST();
 	virtual  ~StmtAST();
 	void Set_IRV(int start_point) override;
-	void Dump_IR(char* IR) const override;
-	virtual void set_symbol_table(std::shared_ptr<SymbolTable> now) override;
-
+	void Dump_IR(char* IR) override;
 };
 
 // ExpExist::Exp|ε
@@ -378,9 +356,8 @@ public:
 	std::unique_ptr<BaseAST>exp;
 	ExpExistAST();
 	virtual ~ExpExistAST()override;
-	virtual void set_symbol_table(std::shared_ptr<SymbolTable> now) override;
 	virtual void Set_IRV(int start_point) override;
-	virtual void Dump_IR(char* IR) const override;
+	virtual void Dump_IR(char* IR) override;
 };
 
 // Exp ::= LOrExp
@@ -390,9 +367,8 @@ public:
 	ExpAST();
 	virtual ~ExpAST();
 	int calculate() override;
-	virtual void set_symbol_table(std::shared_ptr<SymbolTable> now) override;
 	void Set_IRV(int start_point) override;
-	void Dump_IR(char* IR) const override;
+	void Dump_IR(char* IR) override;
 };
 
 // UnaryExp ::= PrimaryExp | UnaryOp UnaryExp
@@ -404,9 +380,8 @@ public:
 	UnaryExpAST();
 	virtual  ~UnaryExpAST() override;
 	int calculate() override;
-	virtual void set_symbol_table(std::shared_ptr<SymbolTable> now) override;
 	void Set_IRV(int start_point) override;
-	void Dump_IR(char* IR) const override;
+	void Dump_IR(char* IR) override;
 };
 
 // PrimaryExp ::= "(" Exp ")" | Number| LVal not yet
@@ -418,9 +393,8 @@ public:
 	PrimaryExpAST();
 	virtual  ~PrimaryExpAST()override;
 	int calculate() override;
-	virtual void set_symbol_table(std::shared_ptr<SymbolTable> now) override;
 	void Set_IRV(int start_point) override;
-	void Dump_IR(char* IR) const override;
+	void Dump_IR(char* IR) override;
 };
 
 // AddExp ::= MulExp | AddExp AddOp MulExp;
@@ -432,9 +406,8 @@ public:
 	AddExpAST();
 	virtual ~AddExpAST()override;
 	int calculate() override;
-	virtual void set_symbol_table(std::shared_ptr<SymbolTable> now) override;
 	void Set_IRV(int start_point) override;
-	void Dump_IR(char* IR) const override;
+	void Dump_IR(char* IR) override;
 };
 
 // MulExp ::=UnaryExp | MulExp MulOp UnaryExp
@@ -447,9 +420,8 @@ public:
 	int calculate() override;
 	MulExpAST();
 	virtual ~MulExpAST() override;
-	virtual void set_symbol_table(std::shared_ptr<SymbolTable> now) override;
 	void Set_IRV(int start_point) override;
-	void Dump_IR(char* IR) const override;
+	void Dump_IR(char* IR) override;
 };
 
 // RelExp ::= AddExp | RelExp ("<" | ">" | "<=" | ">=") AddExp;
@@ -462,9 +434,8 @@ public:
 	RelExpAST();
 	virtual  ~RelExpAST()override;
 	int calculate() override;
-	virtual void set_symbol_table(std::shared_ptr<SymbolTable> now) override;
 	void Set_IRV(int start_point) override;
-	void Dump_IR(char* IR) const override;
+	void Dump_IR(char* IR) override;
 };
 
 // EqExp ::= RelExp | EqExp ("==" | "!=") RelExp;
@@ -477,9 +448,9 @@ public:
 	EqExpAST();
 	virtual ~EqExpAST() override;
 	int calculate() override;
-	virtual void set_symbol_table(std::shared_ptr<SymbolTable> now) override;
+	
 	void Set_IRV(int start_point) override;
-	void Dump_IR(char* IR) const override;
+	void Dump_IR(char* IR) override;
 };
 
 // LAndExp ::= EqExp | LAndExp "&&" EqExp;
@@ -491,9 +462,8 @@ public:
 	LAndExpAST();
 	virtual ~LAndExpAST()override;
 	int calculate() override;
-	virtual void set_symbol_table(std::shared_ptr<SymbolTable> now) override;
 	void Set_IRV(int start_point) override;
-	void Dump_IR(char* IR) const override;
+	void Dump_IR(char* IR) override;
 };
 
 // LOrExp ::= LAndExp | LOrExp "||" LAndExp;
@@ -505,9 +475,8 @@ public:
 	LOrExpAST();
 	virtual ~LOrExpAST() override;
 	int calculate() override;
-	virtual void set_symbol_table(std::shared_ptr<SymbolTable> now) override;
 	void Set_IRV(int start_point) override;
-	void Dump_IR(char* IR) const override;
+	void Dump_IR(char* IR) override;
 
 };
 
@@ -516,7 +485,7 @@ class UnaryOpAST : public BaseAST {
 public:
 	UnaryOpAST();
 	virtual ~UnaryOpAST() override;
-	void Dump_IR(char* IR) const override;
+	void Dump_IR(char* IR) override;
 };
 
 // AddOp ::= "+" | "-"
@@ -524,7 +493,7 @@ class AddOpAST : public BaseAST {
 public:
 	AddOpAST();
 	virtual ~AddOpAST() override;
-	void Dump_IR(char* IR) const override;
+	void Dump_IR(char* IR) override;
 };
 
 // MulOp ::= "*" | "/" | "%"
@@ -532,14 +501,14 @@ class MulOpAST : public BaseAST {
 public:
 	MulOpAST();
 	virtual ~MulOpAST();
-	void Dump_IR(char* IR) const override;
+	void Dump_IR(char* IR) override;
 };
 // ("<" | ">" | "<=" | ">=")
 class RelOpAST : public BaseAST {
 public:
 	RelOpAST();
 	virtual ~RelOpAST();
-	void Dump_IR(char* IR) const override;
+	void Dump_IR(char* IR) override;
 
 };
 
@@ -548,6 +517,6 @@ class EqOpAST : public BaseAST {
 public:
 	EqOpAST();
 	virtual ~EqOpAST();
-	void Dump_IR(char* IR) const override;
+	void Dump_IR(char* IR) override;
 };
 
