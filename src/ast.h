@@ -57,13 +57,13 @@ typedef struct Varient {
 	std::string name;
 	int tag;
 	int value;//如果tag是Const则value就是具体值，如果是Var就放置编号
-	Varient() :name(" "), tag(-1), value(-1){}
+	Varient() :name(" "), tag(-1), value(-1) {}
 	friend std::ostream& operator<<(std::ostream& out, Varient& st) {
 		out << "name " << st.name << " tag " << st.tag << " value" << st.value << endl;
 		return out;
 	}
 	//无论是常量还是变量都只有在声明后才设置为alive
-	Varient(std::string _name, int _tag, int _value) :name(_name), tag(_tag), value(_value){}
+	Varient(std::string _name, int _tag, int _value) :name(_name), tag(_tag), value(_value) {}
 	Varient& operator=(const Varient& a) {
 		name = a.name;
 		tag = a.tag;
@@ -78,9 +78,9 @@ typedef struct Varient {
 		else if (tag == Var) {
 			return "@" + name + "_" + std::to_string(value);
 		}
-    return "should not be here";
+		return "should not be here";
 	}
-  
+
 }Varient;
 
 // 每一个ast都包含一个对应层次的symboltable，里面仅存放当前层数的 not yet
@@ -91,7 +91,7 @@ public:
 
 	static std::map<std::string, int> var_id;//保存所有变量的id，共享
 
-	SymbolTable(std::shared_ptr<SymbolTable> _pre):pre_table(_pre) {}
+	SymbolTable(std::shared_ptr<SymbolTable> _pre) :pre_table(_pre) {}
 
 	// 按照tag来insert
 	void insert(std::string key, int tag, int value) {
@@ -121,7 +121,7 @@ public:
 		}
 		assert(false);//一定能搜到，语法正确的情况下
 	}
-	
+
 
 	friend std::ostream& operator<<(std::ostream& out, SymbolTable& st) {
 		for (auto iter = st.varient_pair_map.begin(); iter != st.varient_pair_map.end(); iter++) {
@@ -137,11 +137,10 @@ class BaseAST {
 public:
 	int flag;
 	IR_Ins_Value IRV;
-	BaseAST() :flag(-1){}
+	BaseAST() :flag(-1) {}
 	virtual ~BaseAST() {};
 
-	virtual void  Dump_IR(char* IR){};
-	virtual void  Set_IRV(int start_point) {};// 有个start point的参数作为第一次分配寄存器的开始列表
+	virtual void  Dump_IR(char* IR) {};
 	virtual int calculate() { assert(false); return 0; };
 
 };
@@ -151,7 +150,7 @@ public:
 	std::unique_ptr<BaseAST> func_def;
 	CompUnitAST();
 	virtual ~CompUnitAST() override;
-	virtual void Set_IRV(int start_point) override;
+	
 	virtual void Dump_IR(char* IR) override;
 };
 
@@ -162,7 +161,7 @@ public:
 	std::unique_ptr<BaseAST> block;
 	FuncDefAST();
 	virtual ~FuncDefAST() override;
-	virtual void Set_IRV(int start_point) override;
+	
 	virtual void Dump_IR(char* IR) override;
 };
 
@@ -172,7 +171,7 @@ public:
 	std::unique_ptr<BaseAST> blockitemvec;
 	BlockAST();
 	virtual ~BlockAST() override;
-	virtual void Set_IRV(int start_point) override;
+	
 	virtual void Dump_IR(char* IR) override;
 };
 
@@ -195,7 +194,7 @@ public:
 	BlockItemVecAST();
 	virtual ~BlockItemVecAST() override;
 	virtual void Dump_IR(char* IR) override;
-	virtual void Set_IRV(int start_point) override;
+	
 };
 
 // BlockItem::=Decl|Stmt
@@ -206,8 +205,8 @@ public:
 	BlockItemAST();
 	virtual~BlockItemAST() override;
 	virtual void Dump_IR(char* IR) override;
+
 	
-	virtual void Set_IRV(int start_point) override;
 };
 
 // Decl::=ConstDecl|VarDecl
@@ -218,8 +217,8 @@ public:
 	DeclAST();
 	virtual ~DeclAST()override;
 	virtual void Dump_IR(char* IR) override;
+
 	
-	virtual void Set_IRV(int start_point) override;
 
 };
 
@@ -230,7 +229,7 @@ public:
 	std::unique_ptr<BaseAST> constdefvec;
 	ConstDeclAST();
 	virtual ~ConstDeclAST()override;
-	
+
 	virtual void Dump_IR(char* IR) override;
 };
 
@@ -248,7 +247,7 @@ public:
 	vector<unique_ptr<BaseAST>> itemvec;
 	ConstDefVecAST();
 	virtual ~ConstDefVecAST() override;
-	
+
 	virtual void Dump_IR(char* IR) override;
 
 };
@@ -281,7 +280,7 @@ public:
 	std::string ident;
 	LValAST();
 	virtual  ~LValAST();
-	virtual void Set_IRV(int start_point)override;
+	
 	virtual void Dump_IR(char* IR)override;
 };
 
@@ -301,7 +300,7 @@ public:
 	std::unique_ptr<BaseAST> vardefvec;
 	VarDeclAST();
 	virtual  ~VarDeclAST() override;
-	virtual void Set_IRV(int start_point) override;
+	
 	virtual void Dump_IR(char* IR) override;
 };
 
@@ -311,7 +310,7 @@ public:
 	std::vector<std::unique_ptr<BaseAST>> itemvec;
 	VarDefVecAST();
 	virtual ~VarDefVecAST() override;
-	virtual void Set_IRV(int start_point) override;
+	
 	virtual void Dump_IR(char* IR) override;
 };
 
@@ -322,7 +321,7 @@ public:
 	std::unique_ptr<BaseAST> initval;
 	VarDefAST();
 	virtual  ~VarDefAST() override;
-	virtual void Set_IRV(int start_point) override;
+	
 	virtual void Dump_IR(char* IR) override;
 };
 
@@ -333,7 +332,7 @@ public:
 	InitValAST();
 	virtual ~InitValAST() override;
 	virtual void Dump_IR(char* IR) override;
-	virtual void Set_IRV(int start_point) override;
+	
 };
 
 
@@ -346,7 +345,7 @@ public:
 	std::unique_ptr<BaseAST> block;
 	StmtAST();
 	virtual  ~StmtAST();
-	void Set_IRV(int start_point) override;
+	
 	void Dump_IR(char* IR) override;
 };
 
@@ -356,7 +355,7 @@ public:
 	std::unique_ptr<BaseAST>exp;
 	ExpExistAST();
 	virtual ~ExpExistAST()override;
-	virtual void Set_IRV(int start_point) override;
+	
 	virtual void Dump_IR(char* IR) override;
 };
 
@@ -367,7 +366,7 @@ public:
 	ExpAST();
 	virtual ~ExpAST();
 	int calculate() override;
-	void Set_IRV(int start_point) override;
+	
 	void Dump_IR(char* IR) override;
 };
 
@@ -380,7 +379,7 @@ public:
 	UnaryExpAST();
 	virtual  ~UnaryExpAST() override;
 	int calculate() override;
-	void Set_IRV(int start_point) override;
+	
 	void Dump_IR(char* IR) override;
 };
 
@@ -393,7 +392,7 @@ public:
 	PrimaryExpAST();
 	virtual  ~PrimaryExpAST()override;
 	int calculate() override;
-	void Set_IRV(int start_point) override;
+	
 	void Dump_IR(char* IR) override;
 };
 
@@ -406,7 +405,7 @@ public:
 	AddExpAST();
 	virtual ~AddExpAST()override;
 	int calculate() override;
-	void Set_IRV(int start_point) override;
+	
 	void Dump_IR(char* IR) override;
 };
 
@@ -420,7 +419,7 @@ public:
 	int calculate() override;
 	MulExpAST();
 	virtual ~MulExpAST() override;
-	void Set_IRV(int start_point) override;
+	
 	void Dump_IR(char* IR) override;
 };
 
@@ -434,7 +433,7 @@ public:
 	RelExpAST();
 	virtual  ~RelExpAST()override;
 	int calculate() override;
-	void Set_IRV(int start_point) override;
+	
 	void Dump_IR(char* IR) override;
 };
 
@@ -448,8 +447,8 @@ public:
 	EqExpAST();
 	virtual ~EqExpAST() override;
 	int calculate() override;
+
 	
-	void Set_IRV(int start_point) override;
 	void Dump_IR(char* IR) override;
 };
 
@@ -462,7 +461,7 @@ public:
 	LAndExpAST();
 	virtual ~LAndExpAST()override;
 	int calculate() override;
-	void Set_IRV(int start_point) override;
+	
 	void Dump_IR(char* IR) override;
 };
 
@@ -475,7 +474,7 @@ public:
 	LOrExpAST();
 	virtual ~LOrExpAST() override;
 	int calculate() override;
-	void Set_IRV(int start_point) override;
+	
 	void Dump_IR(char* IR) override;
 
 };
