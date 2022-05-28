@@ -35,8 +35,6 @@ using namespace std;
 
 %union {
   BaseAST *ast_val;
-  BlockItemVecAST *blockvecast_val;
-  ConstDefVecAST *constvecast_val;
   std::string *str_val;
   int int_val;
 }
@@ -51,7 +49,7 @@ using namespace std;
 
 // 非终结符的类型定义 所有的非终结符都改成ast类型
 %type <ast_val> FuncDef FuncType Block BlockItem BlockItemVec ConstDefVec
-%type <ast_val> Stmt Exp PrimaryExp UnaryExp UnaryOp AddExp MulExp AddOp MulOp LOrExp LAndExp EqExp RelExp EqOp RelOp ConstExp 
+%type <ast_val> Stmt ExpExist Exp PrimaryExp UnaryExp UnaryOp AddExp MulExp AddOp MulOp LOrExp LAndExp EqExp RelExp EqOp RelOp ConstExp 
 %type <ast_val> Decl ConstDecl BType ConstDef ConstInitVal LVal VarDecl VarDefVec VarDef InitVal
 %type <int_val> Number //number我们这里是定义为int类型的
 
@@ -96,7 +94,9 @@ FuncDef
 FuncType
   : INT 
   {
-    $$  = new FuncTypeAST("int");
+    auto functype  = new FuncTypeAST();
+    functype->type = "int";
+    $$ = functype;
   };
 
 
@@ -270,20 +270,46 @@ InitVal
 
 
 Stmt
-  : RETURN Exp ';' {
+  : LVal '=' Exp ';'{
     auto stmt = new StmtAST();
-    stmt->flag = 0; // 表示return一个exp这种的分解方式
-    stmt->exp = unique_ptr<BaseAST>($2);
-    $$ = stmt;
-  }
-  | LVal '=' Exp ';'{
-    auto stmt = new StmtAST();
-    stmt->flag = 1;
+    stmt->flag = 0;
     stmt->lval = unique_ptr<BaseAST>($1);
     stmt->exp = unique_ptr<BaseAST>($3);
     $$ = stmt;
+  }
+  | ExpExist ';'{
+    auto stmt = new StmtAST();
+    stmt->flag = 1;
+    stmt->expexist = unique_ptr<BaseAST>($1);
+    $$ = stmt;
+  }
+  | Block {
+    auto stmt = new StmtAST();
+    stmt->flag = 2;
+    stmt->block = unique_ptr<BaseAST>($1);
+    $$ = stmt;
+
+  }
+  | RETURN ExpExist ';' {
+    auto stmt = new StmtAST();
+    stmt->flag = 3; 
+    stmt->expexist = unique_ptr<BaseAST>($2);
+    $$ = stmt;
   };
 
+ExpExist
+  :Exp{
+    auto expexist = new ExpExistAST();
+    expexist->exp = unique_ptr<BaseAST>($1);
+    expexist->flag=0;
+    $$ = expexist;
+  }
+  | {
+    auto expexist = new ExpExistAST();
+    expexist->exp = nullptr;
+    expexist->flag =1;
+    $$ = expexist;
+  };
 
 Exp 
   : LOrExp

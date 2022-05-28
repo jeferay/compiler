@@ -10,29 +10,38 @@
 using namespace std;
 
 
-SymbolTable symbol_table;
+CompUnitAST::CompUnitAST() {}
+CompUnitAST::~CompUnitAST() {}
 
 void CompUnitAST::Set_IRV(int start_point) {
 	func_def->Set_IRV(start_point);
+	IRV = func_def->IRV;
 }
 
 void CompUnitAST::Dump_IR(char* IR) const {
 	func_def->Dump_IR(IR);
 }
 
-void CompUnitAST::set_symbol_table() {
-	func_def->set_symbol_table();
+void CompUnitAST::set_symbol_table(std::shared_ptr<SymbolTable> now) {
+	assert(now == nullptr);// 程序的开始 是一个nullptr
+	symtable = std::shared_ptr<SymbolTable>(new SymbolTable());
+	func_def->set_symbol_table(symtable);
 }
 
 void CompUnitAST::output_symbol_table() {
-	cout << "output symbol table\n" << symbol_table << endl;
-}
-void FuncDefAST::Set_IRV(int start_point) {
-	block->Set_IRV(start_point);
+	cout << "output symbol table\n" << symtable << endl;
 }
 
-void FuncDefAST::set_symbol_table() {
-	block->set_symbol_table();
+FuncDefAST::FuncDefAST() {}
+FuncDefAST::~FuncDefAST() {}
+void FuncDefAST::Set_IRV(int start_point) {
+	block->Set_IRV(start_point);
+	IRV = block->IRV;
+}
+
+void FuncDefAST::set_symbol_table(std::shared_ptr<SymbolTable> now) {
+	symtable = now;
+	block->set_symbol_table(symtable); // 此时不新建table，沿用上层的，stmt的时候新建table并设置指针
 }
 
 void FuncDefAST::Dump_IR(char* IR) const {
@@ -40,19 +49,24 @@ void FuncDefAST::Dump_IR(char* IR) const {
 	strcat(IR, const_cast<char*>(ident.c_str()));
 	strcat(IR, "(): ");
 	func_type->Dump_IR(IR);
+	strcat(IR, "\%entry:\n");
 	block->Dump_IR(IR);
+	strcat(IR, "}\n");
 }
 
 void FuncTypeAST::Dump_IR(char* IR) const {
 	if (type == "int") {
-		strcat(IR, "i32 ");
+		strcat(IR, "i32 {\n");
 	}
 }
 
 FuncTypeAST::FuncTypeAST(string _type) :type(_type) {}
 FuncTypeAST::FuncTypeAST() {}
+FuncTypeAST::~FuncTypeAST() {}
 
 // BlockAST::='{' '}'|'{' BlockItemVec '}'
+BlockAST::BlockAST() {}
+BlockAST::~BlockAST() {}
 void BlockAST::Set_IRV(int start_point) {
 	if (flag == 1) {
 		blockitemvec->Set_IRV(start_point);
@@ -60,23 +74,26 @@ void BlockAST::Set_IRV(int start_point) {
 	}
 }
 
-void BlockAST::set_symbol_table() {
+void BlockAST::set_symbol_table(std::shared_ptr<SymbolTable>now) {
 	if (flag == 1) {
-		blockitemvec->set_symbol_table();
+		symtable = now;
+		blockitemvec->set_symbol_table(now);
 	}
 }
 void BlockAST::Dump_IR(char* IR) const {
-	strcat(IR, "{\n\%entry:\n");
+
 	if (flag == 1) {
 		blockitemvec->Dump_IR(IR);
 	}
-	strcat(IR, "}\n");
 }
 
 //BlockItemVec::=BlockItemVec BlockItem | BlockItem
-void BlockItemVecAST::set_symbol_table() {
+BlockItemVecAST::BlockItemVecAST() {}
+BlockItemVecAST::~BlockItemVecAST() {}
+void BlockItemVecAST::set_symbol_table(std::shared_ptr<SymbolTable>now) {
+	symtable = now;
 	for (int i = 0; i < itemvec.size(); i++) {
-		itemvec[i]->set_symbol_table();
+		itemvec[i]->set_symbol_table(symtable);
 	}
 }
 
@@ -100,9 +117,15 @@ void BlockItemVecAST::Set_IRV(int start_point) {
 
 
 // BlockItem::=Decl|Stmt
-void BlockItemAST::set_symbol_table() {
+BlockItemAST::BlockItemAST() {}
+BlockItemAST::~BlockItemAST() {}
+void BlockItemAST::set_symbol_table(std::shared_ptr<SymbolTable>now) {
+	symtable = now;
 	if (flag == 0) {
-		decl->set_symbol_table();
+		decl->set_symbol_table(symtable);
+	}
+	else if (flag == 1) {
+		stmt->set_symbol_table(symtable);
 	}
 }
 
@@ -128,12 +151,15 @@ void BlockItemAST::Set_IRV(int start_point) {
 
 
 // Decl::=ConstDecl|VarDecl
-void DeclAST::set_symbol_table() {
+DeclAST::DeclAST() {}
+DeclAST::~DeclAST() {}
+void DeclAST::set_symbol_table(std::shared_ptr<SymbolTable>now) {
+	symtable = now;
 	if (flag == 0) {
-		constdecl->set_symbol_table();
+		constdecl->set_symbol_table(symtable);
 	}
 	else if (flag == 1) {
-		vardecl->set_symbol_table();
+		vardecl->set_symbol_table(symtable);
 	}
 }
 
@@ -154,61 +180,81 @@ void DeclAST::Set_IRV(int start_point) {
 
 
 // ConstDecl::="const" BType ConstDefVec ';'
-void ConstDeclAST::set_symbol_table() {
-	constdefvec->set_symbol_table();
+ConstDeclAST::ConstDeclAST() {}
+ConstDeclAST::~ConstDeclAST() {}
+void ConstDeclAST::set_symbol_table(std::shared_ptr<SymbolTable>now) {
+	symtable = now;
+	constdefvec->set_symbol_table(symtable);
 }
 
 // ConstDefVec::= ConstDefVec ',' ConstDef | ConstDef
-
-void ConstDefVecAST::set_symbol_table() {
+ConstDefVecAST::ConstDefVecAST() {}
+ConstDefVecAST::~ConstDefVecAST() {}
+void ConstDefVecAST::set_symbol_table(std::shared_ptr<SymbolTable>now) {
+	symtable = now;
 	for (int i = 0; i < itemvec.size(); i++) {
-		itemvec[i]->set_symbol_table();
+		itemvec[i]->set_symbol_table(symtable);
 	}
 }
+BtypeAST::BtypeAST() {}
+BtypeAST::~BtypeAST() {}
 
 // ConstDefAST::= IDENT '=' ConstInitVal
+ConstDefAST::ConstDefAST() {}
+ConstDefAST::~ConstDefAST() {}
 int ConstDefAST::calculate() {
 	return constinitval->calculate();
 }
-void ConstDefAST::set_symbol_table() {
-	symbol_table.insert(ident, ConstVar, calculate());
+void ConstDefAST::set_symbol_table(std::shared_ptr<SymbolTable>now) {
+	symtable = now;
+	symtable->insert(ident, ConstVar, calculate());
 }
 
 // ConstInitVal::= ConstExp
+ConstInitValAST::ConstInitValAST() {}
+ConstInitValAST::~ConstInitValAST() {}
 int ConstInitValAST::calculate() {
 	return constexp->calculate();
 }
 
 // LVal::= IDENT
-Varient LValAST::lookup_table() {
-	return symbol_table.find(ident);
+LValAST::LValAST() {}
+LValAST::~LValAST() {}
+void LValAST::set_symbol_table(std::shared_ptr<SymbolTable>now) {
+	symtable = now;
 }
 
 void::LValAST::Set_IRV(int start_point) {
-	Varient v = lookup_table();
+	Varient v = symtable->search_until_root(ident);
 	if (v.tag == ConstVar) {
 		IRV.return_type = Integer;
 		IRV.return_value = v.value;
 	}
-	else if (v.tag == Var) {
+	else if (v.tag == Var) { //load 到寄存器
 		IRV.return_type = Register;
 		IRV.return_value = start_point;
 	}
 }
 
-// ConstExp ::= Exp
+// ConstExp ::= Exp 实现了计算函数，能返回只给def就可
+ConstExpAST::ConstExpAST() {}
+ConstExpAST::~ConstExpAST() {}
 int ConstExpAST::calculate() {
 	return exp->calculate();
 }
 
+
 // VarDecl::=Btype VarDefVec ';'
-void VarDeclAST::set_symbol_table() {
-	vardefvec->set_symbol_table();
+VarDeclAST::VarDeclAST() {}
+VarDeclAST::~VarDeclAST() {}
+void VarDeclAST::set_symbol_table(std::shared_ptr<SymbolTable>now) {
+	symtable = now;
+	vardefvec->set_symbol_table(symtable);
 }
 
 void VarDeclAST::Set_IRV(int start_point) {
 	vardefvec->Set_IRV(start_point);
-  IRV = vardefvec->IRV;
+	IRV = vardefvec->IRV;
 }
 
 void VarDeclAST::Dump_IR(char* IR) const {
@@ -216,15 +262,19 @@ void VarDeclAST::Dump_IR(char* IR) const {
 }
 
 // VarDefVec::=VarDefVec ',' VarDef | VarDef
-void VarDefVecAST::set_symbol_table() {
+VarDefVecAST::VarDefVecAST() {}
+VarDefVecAST::~VarDefVecAST() {}
+
+void VarDefVecAST::set_symbol_table(std::shared_ptr<SymbolTable>now) {
+	symtable = now;
 	for (int i = 0; i < itemvec.size(); ++i) {
-		itemvec[i]->set_symbol_table();
+		itemvec[i]->set_symbol_table(symtable);
 	}
 }
 
 void VarDefVecAST::Set_IRV(int start_point) {
 	int i = 0;
-	for (i=0; i < itemvec.size(); ++i) {
+	for (i = 0; i < itemvec.size(); ++i) {
 		itemvec[i]->Set_IRV(start_point);
 		if (itemvec[i]->IRV.return_type == Register) {
 			start_point = itemvec[i]->IRV.return_value + 1;
@@ -238,9 +288,17 @@ void VarDefVecAST::Dump_IR(char* IR)const {
 	}
 }
 
-// VarDef::=IDENT|IDENT '=' InitVal
-void VarDefAST::set_symbol_table() {
-	symbol_table.insert(ident, Varient(Var, 0));
+// VarDef::=IDENT|IDENT '=' InitVal 插入一个新的变量到当层符号表中，要查询目前整棵树的符号表情况，决定变量的标号
+VarDefAST::VarDefAST() {}
+VarDefAST::~VarDefAST() {}
+void VarDefAST::set_symbol_table(std::shared_ptr<SymbolTable>now) {
+	symtable = now;
+	cout << ident << " xxxxx" << endl;
+	symtable->insert(ident, Var, 0);
+	cout << symtable;
+	if (flag == 1) {
+		initval->set_symbol_table(symtable);
+	}
 }
 void VarDefAST::Set_IRV(int start_point) {
 	if (flag == 0) {}// 不操作
@@ -255,12 +313,14 @@ void VarDefAST::Dump_IR(char* IR) const {
 	strcat(IR, const_cast<char*>(temp_IR.c_str()));
 	if (flag == 1) {
 		initval->Dump_IR(IR);
-		temp_IR = "  store " + initval->IRV.get_IR_value() + ", @" + ident + "\n";
+		temp_IR = "  store " + initval->IRV.get_IR_value() + ", " + symtable->search_until_root(ident).get_str_value(symtable->multi_def(ident)) + "\n";
 		strcat(IR, const_cast<char*>(temp_IR.c_str()));
 	}
 }
 
 // InitVal::=Exp
+InitValAST::InitValAST() {}
+InitValAST::~InitValAST() {}
 void InitValAST::Set_IRV(int start_point) {
 	exp->Set_IRV(start_point);
 	IRV = exp->IRV;
@@ -269,33 +329,119 @@ void InitValAST::Dump_IR(char* IR) const {
 	exp->Dump_IR(IR);
 }
 
+void InitValAST::set_symbol_table(std::shared_ptr<SymbolTable>now) {
+	symtable = now;
+	exp->set_symbol_table(symtable);
+}
 
-// StmtAST::= RETURN Exp ';'| Lval '=' Exp ';'
+
+// StmtAST::=  Lval '=' Exp ';' | ExpExist ';' | Block | "return" ExpExist ';'
+StmtAST::StmtAST() {}
+StmtAST::~StmtAST() {}
 void StmtAST::Set_IRV(int start_point) {
 	if (IRV.return_type != -1) return;
-	if (flag == 0 || flag == 1) {
+	switch (flag)
+	{
+	case 0:
+		exp->Set_IRV(start_point);
+		IRV = exp->IRV; break;
+	case 1:
+		expexist->Set_IRV(start_point);
+		IRV = expexist->IRV; break;
+	case 2:
+		block->Set_IRV(start_point);
+		IRV = block->IRV; break;
+	case 3:
+		expexist->Set_IRV(start_point);
+		IRV = expexist->IRV; break;
+	}
+}
+
+void StmtAST::set_symbol_table(std::shared_ptr<SymbolTable> now) {
+	switch (flag)
+	{
+	case 0:symtable = now; exp->set_symbol_table(symtable); break;
+	case 1:symtable = now; expexist->set_symbol_table(symtable); break;
+	case 2:
+		symtable = now;
+		now = std::shared_ptr<SymbolTable>(new SymbolTable());
+		symtable->sons.push_back(now);
+		now->pre = symtable;
+		block->set_symbol_table(now);
+		break;
+	case 3:
+		symtable = now; expexist->set_symbol_table(symtable); break;
+	}
+}
+
+void StmtAST::Dump_IR(char* IR) const {
+	switch (flag)
+	{
+	case 0: {
+		exp->Dump_IR(IR);
+		std::string key = dynamic_cast<LValAST&>(*lval).ident;
+		std::string temp_IR = "  store " + IRV.get_IR_value() + ", " + symtable->search_until_root(key).get_str_value(symtable->multi_def(key)) + "\n";
+		strcat(IR, const_cast<char*>(temp_IR.c_str()));
+		break;
+	}
+	case 1: {
+		expexist->Dump_IR(IR);
+		break;
+	}
+	case 2: {
+		block->Dump_IR(IR);
+		break;
+	}
+	case 3: {
+		if (expexist->flag == 0) {
+			expexist->Dump_IR(IR);
+			std::string temp_IR = "  ret " + IRV.get_IR_value() + "\n";
+			strcat(IR, const_cast<char*>(temp_IR.c_str()));
+		}
+		else if (expexist->flag == 1) {
+			strcat(IR, "  ret \n");
+		}
+		break;
+	}
+	}
+}
+
+
+//ExpExist ::= Exp|ε
+ExpExistAST::ExpExistAST() {}
+ExpExistAST::~ExpExistAST() {}
+void ExpExistAST::Set_IRV(int start_point) {
+	if (flag == 0) {
 		exp->Set_IRV(start_point);
 		IRV = exp->IRV;
 	}
 }
-void StmtAST::Dump_IR(char* IR) const { // not yet
-	// return exp
+
+void ExpExistAST::set_symbol_table(std::shared_ptr<SymbolTable>now) {
+	symtable = now;
+	if (flag == 0) {
+		exp->set_symbol_table(symtable);
+	}
+}
+
+void ExpExistAST::Dump_IR(char* IR)const {
 	if (flag == 0) {
 		exp->Dump_IR(IR);
-		std::string temp_IR = "  ret " + IRV.get_IR_value() + "\n";
-		strcat(IR, const_cast<char*>(temp_IR.c_str()));
-	}
-	else if (flag == 1) {
-		exp->Dump_IR(IR);
-		std::string temp_IR = "  store " + IRV.get_IR_value() + ", @" + dynamic_cast<LValAST&>(*lval).ident + "\n";
-		strcat(IR, const_cast<char*>(temp_IR.c_str()));
 	}
 }
 
 // Exp ::= LOrExp
+ExpAST::ExpAST() {}
+ExpAST::~ExpAST() {}
 int ExpAST::calculate() {
 	return lorexp->calculate();
 }
+
+void ExpAST::set_symbol_table(std::shared_ptr<SymbolTable>now) {
+	symtable = now;
+	lorexp->set_symbol_table(now);
+}
+
 void ExpAST::Set_IRV(int start_point) {
 	if (IRV.return_type != -1) return;
 	if (flag == 0) {
@@ -310,11 +456,23 @@ void ExpAST::Dump_IR(char* IR) const {
 }
 
 
+
 // PrimaryExp ::= "(" Exp ")" | Number| LVal
+PrimaryExpAST::PrimaryExpAST() {}
+PrimaryExpAST::~PrimaryExpAST() {}
 int PrimaryExpAST::calculate() {
 	if (flag == 0) return exp->calculate();
 	if (flag == 1) return number;
-	if (flag == 2) return lval->lookup_table().value;
+	if (flag == 2) return lval->symtable->search_until_root(dynamic_cast<LValAST&>(*lval).ident).value;
+}
+
+void PrimaryExpAST::set_symbol_table(std::shared_ptr<SymbolTable>now) {
+	symtable = now;
+	switch (flag) {
+	case 0:exp->set_symbol_table(now); break;
+	case 1:break;
+	case 2:lval->set_symbol_table(now); break;
+	}
 }
 
 void PrimaryExpAST::Set_IRV(int start_point) {
@@ -341,13 +499,16 @@ void PrimaryExpAST::Dump_IR(char* IR) const {
 	if (flag == 0) {
 		exp->Dump_IR(IR);
 	}
-	else if (flag==2&&IRV.return_type==Register) { // load一个变量
-		std::string temp_IR = "  " + IRV.get_IR_value() + " = load @" + dynamic_cast<LValAST&>(*lval).ident + "\n";
-    strcat(IR, const_cast<char*>(temp_IR.c_str()));
+	else if (flag == 2 && IRV.return_type == Register) { // load一个变量
+		std::string key = dynamic_cast<LValAST&>(*lval).ident;
+		std::string temp_IR = "  " + IRV.get_IR_value() + " = load " + symtable->search_until_root(key).get_str_value(symtable->multi_def(key)) + "\n";
+		strcat(IR, const_cast<char*>(temp_IR.c_str()));
 	}
 }
 
 // UnaryExp ::= PrimaryExp | UnaryOp UnaryExp
+UnaryExpAST::UnaryExpAST() {}
+UnaryExpAST::~UnaryExpAST() {}
 int UnaryExpAST::calculate() {
 	if (flag == 0) {
 		return primaryexp->calculate();
@@ -360,6 +521,18 @@ int UnaryExpAST::calculate() {
 		}
 	}
 }
+
+void UnaryExpAST::set_symbol_table(std::shared_ptr<SymbolTable>now) {
+	symtable = now;
+	if (flag == 0) {
+		primaryexp->set_symbol_table(now);
+	}
+	else if (flag == 1) {
+		unaryexp->set_symbol_table(now);
+	}
+
+}
+
 void UnaryExpAST::Set_IRV(int start_point) {
 	if (IRV.return_type != -1) return;
 	if (flag == 0) {
@@ -428,6 +601,8 @@ void UnaryExpAST::Dump_IR(char* IR) const {
 
 
 // MulExp ::=UnaryExp | MulExp MulOp UnaryExp
+MulExpAST::MulExpAST() {}
+MulExpAST::~MulExpAST() {}
 int MulExpAST::calculate() {
 	if (flag == 0) return unaryexp->calculate();
 	else if (flag == 1) {
@@ -438,6 +613,11 @@ int MulExpAST::calculate() {
 		case 2: return mulexp->calculate() % unaryexp->calculate(); break;
 		}
 	}
+}
+void MulExpAST::set_symbol_table(std::shared_ptr<SymbolTable>now) {
+	symtable = now;
+	unaryexp->set_symbol_table(now);
+	if (flag == 1)mulexp->set_symbol_table(now);
 }
 void MulExpAST::Set_IRV(int start_point) {
 	if (IRV.return_type != -1)return;
@@ -477,12 +657,20 @@ void MulExpAST::Dump_IR(char* IR) const {
 }
 
 // AddExp ::= MulExp | AddExp AddOp MulExp;
+AddExpAST::AddExpAST() {}
+AddExpAST::~AddExpAST() {}
 int AddExpAST::calculate() {
 	if (flag == 0) return mulexp->calculate();
 	else if (flag == 1) {
 		if (addop->flag == 0) return addexp->calculate() + mulexp->calculate();
 		else if (addop->flag == 1) return addexp->calculate() - mulexp->calculate();
 	}
+}
+
+void AddExpAST::set_symbol_table(std::shared_ptr<SymbolTable>now) {
+	symtable = now;
+	mulexp->set_symbol_table(now);
+	if (flag == 1)addexp->set_symbol_table(now);
 }
 void AddExpAST::Set_IRV(int start_point) {
 	if (IRV.return_type != -1) return;
@@ -497,7 +685,7 @@ void AddExpAST::Set_IRV(int start_point) {
 		}
 		mulexp->Set_IRV(start_point);
 		if (mulexp->IRV.return_type == Register) {
-			start_point = mulexp->IRV.return_value + 1; 
+			start_point = mulexp->IRV.return_value + 1;
 		}
 		IRV.return_type = Register;
 		IRV.return_value = start_point;
@@ -524,6 +712,8 @@ void AddExpAST::Dump_IR(char* IR) const {
 
 
 // RelExp ::= AddExp | RelExp ("<" | ">" | "<=" | ">=") AddExp;
+RelExpAST::RelExpAST() {}
+RelExpAST::~RelExpAST() {}
 int RelExpAST::calculate() {
 	if (flag == 0) return addexp->calculate();
 	if (flag == 1) {
@@ -535,6 +725,11 @@ int RelExpAST::calculate() {
 		case 3: return relexp->calculate() >= addexp->calculate(); break;
 		}
 	}
+}
+void RelExpAST::set_symbol_table(std::shared_ptr<SymbolTable>now) {
+	symtable = now;
+	addexp->set_symbol_table(now);
+	if (flag == 1)relexp->set_symbol_table(now);
 }
 void RelExpAST::Set_IRV(int start_point) {
 	if (IRV.return_type != -1)return;
@@ -576,6 +771,8 @@ void RelExpAST::Dump_IR(char* IR) const {
 }
 
 // EqExp ::= RelExp | EqExp ("==" | "!=") RelExp;
+EqExpAST::EqExpAST() {}
+EqExpAST::~EqExpAST() {}
 int EqExpAST::calculate() {
 	if (flag == 0) {
 		return relexp->calculate();
@@ -588,6 +785,11 @@ int EqExpAST::calculate() {
 			return eqexp->calculate() != relexp->calculate();
 		}
 	}
+}
+void EqExpAST::set_symbol_table(std::shared_ptr<SymbolTable>now) {
+	symtable = now;
+	relexp->set_symbol_table(now);
+	if (flag == 1)eqexp->set_symbol_table(now);
 }
 void EqExpAST::Set_IRV(int start_point) {
 	if (IRV.return_type != -1)return;
@@ -627,6 +829,8 @@ void EqExpAST::Dump_IR(char* IR) const {
 }
 
 // LAndExp ::= EqExp | LAndExp "&&" EqExp;
+LAndExpAST::LAndExpAST() {}
+LAndExpAST::~LAndExpAST() {}
 int LAndExpAST::calculate() {
 	if (flag == 0) {
 		return eqexp->calculate();
@@ -634,6 +838,12 @@ int LAndExpAST::calculate() {
 	else if (flag == 1) {
 		return landexp->calculate() && eqexp->calculate();
 	}
+}
+
+void LAndExpAST::set_symbol_table(std::shared_ptr<SymbolTable>now) {
+	symtable = now;
+	eqexp->set_symbol_table(now);
+	if (flag == 1)landexp->set_symbol_table(now);
 }
 void LAndExpAST::Set_IRV(int start_point) {
 	if (IRV.return_type != -1)return;
@@ -669,11 +879,19 @@ void LAndExpAST::Dump_IR(char* IR) const {
 }
 
 // LOrExp ::= LAndExp | LOrExp "||" LAndExp;
+LOrExpAST::LOrExpAST() {}
+LOrExpAST::~LOrExpAST() {}
 int LOrExpAST::calculate() {
 	if (flag == 0) return landexp->calculate();
 	else if (flag == 1) {
 		return lorexp->calculate() || landexp->calculate();
 	}
+}
+
+void LOrExpAST::set_symbol_table(std::shared_ptr<SymbolTable>now) {
+	symtable = now;
+	landexp->set_symbol_table(now);
+	if (flag == 1)lorexp->set_symbol_table(now);
 }
 
 void LOrExpAST::Set_IRV(int start_point) {
@@ -713,7 +931,16 @@ void LOrExpAST::Dump_IR(char* IR) const {
 		strcat(IR, const_cast<char*>(temp_IR.c_str()));
 	}
 }
-
+UnaryOpAST::UnaryOpAST() {}
+UnaryOpAST::~UnaryOpAST() {}
+AddOpAST::AddOpAST() {}
+AddOpAST::~AddOpAST() {}
+MulOpAST::MulOpAST() {}
+MulOpAST::~MulOpAST() {}
+RelOpAST::RelOpAST() {}
+RelOpAST::~RelOpAST() {}
+EqOpAST::EqOpAST() {}
+EqOpAST::~EqOpAST() {}
 void UnaryOpAST::Dump_IR(char* IR) const { assert(false); }// UnaryOp ::= "+" | "-" | "!";
 void AddOpAST::Dump_IR(char* IR) const { assert(false); }// AddOp ::= "+" | "-"
 void MulOpAST::Dump_IR(char* IR) const { assert(false); }// MulOp ::= "*" | "/" | "%"

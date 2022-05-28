@@ -46,7 +46,7 @@ int main(int argc, const char* argv[]) {
 	// // 输出解析得到的 Koopa IR
 
 	char IR[1024] = { 0 };
-	ast->set_symbol_table(); // 先于set irv
+	ast->set_symbol_table(nullptr); // 先于set irv
 	static_cast<CompUnitAST&>(*ast).output_symbol_table();
 	ast->Set_IRV(0);//在外部提前set好 start point =0
 	ast->Dump_IR(IR);
