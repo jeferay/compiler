@@ -45,7 +45,7 @@ int main(int argc, const char* argv[]) {
 
 	// // 输出解析得到的 Koopa IR
 
-	char IR[1024] = { 0 };
+	char IR[1024000] = { 0 };
 	// ast->Set_IRV(0);//在外部提前set好 start point =0
 	ast->Dump_IR(IR);
 	cout << IR << endl;
