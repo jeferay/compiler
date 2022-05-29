@@ -50,7 +50,7 @@ int main(int argc, const char* argv[]) {
 	ast->Dump_IR(IR);
 	cout << IR << endl;
 
-	char RiscV[1024] = { 0 };
+	char RiscV[102400] = { 0 };
 	// KoopaIR_2_RiscV(IR,RiscV);
 	// cout<<RiscV<<endl;
 
