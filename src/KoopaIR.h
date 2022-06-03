@@ -107,17 +107,10 @@ void Visit(const koopa_raw_binary_t &binary, char * RiscV)
   koopa_raw_value_t lhs = binary.lhs; // *koopa_raw_value_data指针类型
   koopa_raw_value_t rhs = binary.rhs;
 
-  //先处理左右运算数
+  //先处理左右运算数，处理顺序是先又后左，因为入栈顺序是先左后右
   int l_val=0,r_val=0;
   bool is_Reg_l=false,is_Reg_r=false;
-  if (lhs->kind.tag==KOOPA_RVT_BINARY){
-    l_val = reg_stack.pop();
-    is_Reg_l=true;
-  }
-  else if (lhs->kind.tag==KOOPA_RVT_INTEGER){
-    l_val = lhs->kind.data.integer.value;
-    is_Reg_l = false;
-  }
+
   if (rhs->kind.tag==KOOPA_RVT_BINARY){
     r_val = reg_stack.pop();
     is_Reg_r = true;
@@ -126,6 +119,15 @@ void Visit(const koopa_raw_binary_t &binary, char * RiscV)
     r_val = rhs->kind.data.integer.value;
     is_Reg_r = false;
   }
+  if (lhs->kind.tag==KOOPA_RVT_BINARY){
+    l_val = reg_stack.pop();
+    is_Reg_l=true;
+  }
+  else if (lhs->kind.tag==KOOPA_RVT_INTEGER){
+    l_val = lhs->kind.data.integer.value;
+    is_Reg_l = false;
+  }
+  
   // load immediate
   if (is_Reg_l==false&&l_val!=0){
     reg = reg_stack.first_available();
