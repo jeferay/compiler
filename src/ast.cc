@@ -9,15 +9,33 @@
 #include "ast.h"
 using namespace std;
 
+int Basic_Block::block_num = 0;
+Basic_Block* now_block = NULL;
+std::vector<Basic_Block*> bb_stack;
 std::map<std::string, int> SymbolTable::var_id;//保存所有变量的id，共享
 std::shared_ptr<SymbolTable> root_table = std::shared_ptr<SymbolTable>(new SymbolTable(NULL));
 auto now_table = root_table;
 int start_point;
 
+Basic_Block* get_new_bb() {
+	assert(now_block == NULL);
+	if (bb_stack.size()) {
+		Basic_Block* last = bb_stack[bb_stack.size() - 1];
+		bb_stack.pop_back();
+		return last;
+	}
+	else {
+		return new Basic_Block(NULL, NULL);
+	}
+}
+
+
+
 CompUnitAST::CompUnitAST() {}
 CompUnitAST::~CompUnitAST() {}
 
 void CompUnitAST::Dump_IR(char* IR) {
+
 	func_def->Dump_IR(IR);
 	IRV = func_def->IRV;
 }
@@ -31,7 +49,6 @@ void FuncDefAST::Dump_IR(char* IR) {
 	strcat(IR, const_cast<char*>(ident.c_str()));
 	strcat(IR, "(): ");
 	func_type->Dump_IR(IR);
-	strcat(IR, "\%entry:\n");
 	block->Dump_IR(IR);
 	IRV = block->IRV;
 	strcat(IR, "}\n");
@@ -52,7 +69,10 @@ BlockAST::BlockAST() {}
 BlockAST::~BlockAST() {}
 
 void BlockAST::Dump_IR(char* IR) {
-
+	if (now_block == NULL) {
+		now_block = get_new_bb();
+		now_block->output_into_block(IR);
+	}
 	if (flag == 1) {
 		blockitemvec->Dump_IR(IR);
 		IRV = blockitemvec->IRV;
@@ -75,7 +95,12 @@ void BlockItemVecAST::Dump_IR(char* IR) {
 BlockItemAST::BlockItemAST() {}
 BlockItemAST::~BlockItemAST() {}
 
+//每一条语句重新判定一下
 void BlockItemAST::Dump_IR(char* IR) {
+	if (now_block == NULL) {
+		now_block = get_new_bb();
+		now_block->output_into_block(IR);
+	}
 	if (flag == 0) {
 		decl->Dump_IR(IR);
 	}
@@ -126,7 +151,6 @@ int ConstDefAST::calculate() {
 	return constinitval->calculate();
 }
 
-//set alive
 void ConstDefAST::Dump_IR(char* IR) {
 	int const_value = calculate();
 	now_table->insert(ident, ConstVar, const_value);
@@ -213,11 +237,151 @@ void InitValAST::Dump_IR(char* IR) {
 
 
 
-// StmtAST::=  Lval '=' Exp ';' | ExpExist ';' | Block | "return" ExpExist ';'
+// Stmt::=MatchedStmt|OpenStmt
 StmtAST::StmtAST() {}
 StmtAST::~StmtAST() {}
 
 void StmtAST::Dump_IR(char* IR) {
+	if (now_block == NULL) {
+		now_block = get_new_bb();
+		now_block->output_into_block(IR);
+	}
+	if (flag == 0) {
+		matchedstmt->Dump_IR(IR);
+	}
+	else if (flag == 1) {
+		openstmt->Dump_IR(IR);
+	}
+}
+
+//MatchedStmtAST:: IF (Exp) MatchedStmt else MatchedStmt | OtherStmt
+MatchedStmtAST::MatchedStmtAST() {}
+MatchedStmtAST::~MatchedStmtAST() {}
+
+void MatchedStmtAST::Dump_IR(char* IR) {
+	if (now_block == NULL) {
+		now_block = get_new_bb();
+		now_block->output_into_block(IR);
+	}
+	if (flag == 0) {
+		Basic_Block* block_end = now_block->left;
+		if (now_block->left == NULL) {
+			block_end = new Basic_Block(NULL, NULL);
+			bb_stack.push_back(block_end);
+		}
+		Basic_Block* block_else = new Basic_Block(block_end, NULL);
+		Basic_Block* block_if = new Basic_Block(block_end, NULL);
+		// Basic_Block* block_exp = new Basic_Block(block_if, block_else);
+		bb_stack.push_back(block_else);
+		bb_stack.push_back(block_if);
+		// bb_stack.push_back(block_exp);
+		// string temp_IR = "  jump " + block_exp->get_block_name() + "\n";//表示当前的basic block结束
+		// strcat(IR, const_cast<char*>(temp_IR.c_str()));
+
+		//现在写的逻辑是不短路求值，因此exp仍然在有原来的dump范围内 顺序应该是当前block先结束，然后exp开始dump，并依次进入新的basic block
+		exp->Dump_IR(IR);
+		string temp_IR = "  br " + exp->IRV.get_IR_value() + ", " + block_if->get_block_name() + ", " + block_else->get_block_name() + "\n\n";
+		strcat(IR, const_cast<char*>(temp_IR.c_str()));
+		if (now_block) {
+			delete now_block;
+			now_block = NULL;
+		}
+		matchedstmt1->Dump_IR(IR);
+		if (now_block) {
+			temp_IR = "  jump " + block_end->get_block_name() + "\n\n";
+			strcat(IR, const_cast<char*>(temp_IR.c_str()));
+			delete now_block;
+			now_block = NULL;
+		}
+		matchedstmt2->Dump_IR(IR);
+		if (now_block) {
+			temp_IR = "  jump " + block_end->get_block_name() + "\n\n";
+			strcat(IR, const_cast<char*>(temp_IR.c_str()));
+			delete now_block;
+			now_block = NULL;
+		}
+	}
+
+	else if (flag == 1) {
+		otherstmt->Dump_IR(IR);
+	}
+}
+
+//OpenStmt IF (exp) matchedstmt ELSE openstmt | if (Exp) Stmt
+OpenStmtAST::OpenStmtAST() {}
+OpenStmtAST::~OpenStmtAST() {}
+// 在dump中新增几个basic block意味着dump之后就要删除几个
+void OpenStmtAST::Dump_IR(char* IR) {
+	if (now_block == NULL) {
+		now_block = get_new_bb();
+		now_block->output_into_block(IR);
+	}
+	if (flag == 0) {
+		Basic_Block* block_end = now_block->left;
+		if (now_block->left == NULL) {
+			block_end = new Basic_Block(NULL, NULL);
+			bb_stack.push_back(block_end);
+		}
+		Basic_Block* block_else = new Basic_Block(block_end, NULL);
+		Basic_Block* block_if = new Basic_Block(block_end, NULL);
+		// Basic_Block* block_exp = new Basic_Block(block_if, block_else);
+		
+		bb_stack.push_back(block_else);
+		bb_stack.push_back(block_if);
+		// Basic_Block* block_exp = new Basic_Block(block_if, block_else);
+		exp->Dump_IR(IR);
+
+		string temp_IR = "  br " + exp->IRV.get_IR_value() + ", " + block_if->get_block_name() + ", " + block_else->get_block_name() + "\n\n";
+		strcat(IR, const_cast<char*>(temp_IR.c_str()));
+		if (now_block) {
+			delete now_block;
+			now_block = NULL;
+		}
+		matchedstmt->Dump_IR(IR);
+		if (now_block) {
+			temp_IR = "  jump " + block_end->get_block_name() + "\n\n";
+			strcat(IR, const_cast<char*>(temp_IR.c_str()));
+			delete now_block;
+			now_block = NULL;
+		}
+		openstmt->Dump_IR(IR);
+		if (now_block) {
+			temp_IR = "  jump " + block_end->get_block_name() + "\n\n";
+			strcat(IR, const_cast<char*>(temp_IR.c_str()));
+			delete now_block;
+			now_block = NULL;
+		}
+	}
+	else if (flag == 1) {
+		Basic_Block* block_end = now_block->left;
+		if (now_block->left == NULL) {
+			block_end = new Basic_Block(NULL, NULL);
+			bb_stack.push_back(block_end);
+		}
+		Basic_Block* block_if = new Basic_Block(block_end, NULL);
+		bb_stack.push_back(block_if);
+		exp->Dump_IR(IR);
+		string temp_IR = "  br " + exp->IRV.get_IR_value() + ", " + block_if->get_block_name() + ", " + block_end->get_block_name() + "\n\n";
+		strcat(IR, const_cast<char*>(temp_IR.c_str()));
+		if (now_block) {
+			delete now_block;
+			now_block = NULL;
+		}
+		stmt->Dump_IR(IR);
+		if (now_block) {
+			temp_IR = "  jump " + block_end->get_block_name() + "\n\n";
+			strcat(IR, const_cast<char*>(temp_IR.c_str()));
+			delete now_block;
+			now_block = NULL;
+		}
+	}
+}
+
+// OtherStmtAST::=  Lval '=' Exp ';' | ExpExist ';' | Block | "return" ExpExist ';'
+OtherStmtAST::OtherStmtAST() {}
+OtherStmtAST::~OtherStmtAST() {}
+
+void OtherStmtAST::Dump_IR(char* IR) {
 	switch (flag)
 	{
 	case 0: {
@@ -236,7 +400,7 @@ void StmtAST::Dump_IR(char* IR) {
 	case 2: {
 		std::shared_ptr<SymbolTable> son_table = std::shared_ptr<SymbolTable>(new SymbolTable(now_table));
 		assert(son_table->pre_table == now_table);
-		now_table = son_table; 
+		now_table = son_table;
 		block->Dump_IR(IR);
 		now_table = son_table->pre_table;
 		break;
@@ -245,11 +409,15 @@ void StmtAST::Dump_IR(char* IR) {
 		if (expexist->flag == 0) {
 			expexist->Dump_IR(IR);
 			IRV = expexist->IRV;
-			std::string temp_IR = "  ret " + IRV.get_IR_value() + "\n";
+			std::string temp_IR = "  ret " + IRV.get_IR_value() + "\n\n";
 			strcat(IR, const_cast<char*>(temp_IR.c_str()));
+			delete now_block;
+			now_block = NULL;
 		}
 		else if (expexist->flag == 1) {
-			strcat(IR, "  ret \n");
+			strcat(IR, "  ret \n\n");
+			delete now_block;
+			now_block = NULL;
 		}
 		break;
 	}

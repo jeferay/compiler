@@ -274,12 +274,12 @@ Stmt
   : MatchedStmt{
     auto stmt = new StmtAST();
     stmt->flag=0;
-    stmt->matchedasmt = unique_ptr<BaseAST>($1);
+    stmt->matchedstmt = unique_ptr<BaseAST>($1);
     $$ = stmt;
   }
   | OpenStmt{
-    auto stmt = StmtAST();
-    stmt=>flag=1;
+    auto stmt = new StmtAST();
+    stmt->flag=1;
     stmt->openstmt = unique_ptr<BaseAST>($1);
     $$ = stmt;
   };

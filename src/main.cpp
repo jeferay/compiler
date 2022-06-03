@@ -60,6 +60,7 @@ int main(int argc, const char* argv[]) {
 	else if (!strcmp(mode, "-riscv"))
 		std::cout << RiscV << endl;
 	fclose(stdout);
+	int x=0;
 
 	return 0;
 }

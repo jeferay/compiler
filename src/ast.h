@@ -131,11 +131,32 @@ public:
 	}
 };
 
+class Basic_Block {
+public:
+	static int block_num;
+	int block_id;
+	Basic_Block* left;
+	Basic_Block* right;
+	Basic_Block(Basic_Block*_left,Basic_Block*_right){
+		block_id = block_num++;
+		left = _left;
+		right = _right;
+	}
+	void output_into_block(char* IR) {
+		string temp_IR = "\%block" + to_string(block_id) + ":\n";
+		strcat(IR, const_cast<char*>(temp_IR.c_str()));
+	}
+	string get_block_name() {
+		return "\%block" + to_string(block_id);
+	}
+};
+
 
 // 所有 AST 的基类，我们可以理解为一个节点，可以是叶节点或者内部节点，如果是叶节点表示终结符
 class BaseAST {
 public:
 	int flag;
+	int for_branch;//用来记录是否是为了分支，给所有的exp用
 	IR_Ins_Value IRV;
 	BaseAST() :flag(-1) {}
 	virtual ~BaseAST() {};
@@ -339,32 +360,36 @@ public:
 
 
 // StmtAST::=  Lval '=' Exp ';' | ExpExist ';' |Block | "return" ExpExist ';'
+// Stmt::=MatchedStmt|OpenStmt
 class StmtAST : public BaseAST {
 public:
-	std::unique_ptr<BaseAST> exp;
-	std::unique_ptr<BaseAST> lval;
-	std::unique_ptr<BaseAST> expexist;
-	std::unique_ptr<BaseAST> block;
+	std::unique_ptr<BaseAST> matchedstmt;
+	std::unique_ptr<BaseAST> openstmt;
 	StmtAST();
 	virtual  ~StmtAST();
 
 	virtual void Dump_IR(char* IR) override;
 };
 
+//MatchedStmtAST:: IF (Exp) MatchedStmt else MatchedStmt | OtherStmt
 class MatchedStmtAST : public BaseAST {
+public:
 	std::unique_ptr<BaseAST> exp;
-	std::unique_ptr<BaseAST>matched_stmt1;
-	std::unique_ptr<BaseAST>matched_stmt2;
-	std::unique_ptr<BaseAST>other_stmt;
+	std::unique_ptr<BaseAST>matchedstmt1;
+	std::unique_ptr<BaseAST>matchedstmt2;
+	std::unique_ptr<BaseAST>otherstmt;
 	MatchedStmtAST();
 	virtual  ~MatchedStmtAST();
 	virtual void Dump_IR(char* IR) override;
 };
 
+
+// OtherStmtAST::=  Lval '=' Exp ';' | ExpExist ';' | Block | "return" ExpExist ';'
 class OpenStmtAST :public BaseAST {
+public:
 	std::unique_ptr<BaseAST> exp;
-	std::unique_ptr<BaseAST>matched_stmt;
-	std::unique_ptr<BaseAST>open_stmt;
+	std::unique_ptr<BaseAST>matchedstmt;
+	std::unique_ptr<BaseAST>openstmt;
 	std::unique_ptr<BaseAST>stmt;
 
 	OpenStmtAST();
@@ -373,6 +398,7 @@ class OpenStmtAST :public BaseAST {
 };
 
 class OtherStmtAST : public BaseAST {
+public:
 	std::unique_ptr<BaseAST> exp;
 	std::unique_ptr<BaseAST> lval;
 	std::unique_ptr<BaseAST> expexist;
@@ -400,8 +426,7 @@ public:
 	ExpAST();
 	virtual ~ExpAST();
 	int calculate() override;
-	int for_branch;//用来记录是否是为了分支
-
+	
 	void Dump_IR(char* IR) override;
 };
 
