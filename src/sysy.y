@@ -43,14 +43,15 @@ using namespace std;
 // lexer 返回的所有 token 种类的声明
 // 注意 IDENT 和 INT_CONST 会返回 token 的值, 分别对应 str_val 和 int_val
 // 不指定类型, 不返回对应token值
-%token INT RETURN PLUS MINUS SEQZ MUL DIV MOD LT GT LE GE EQ NEQ LOR LAND CONST
+%token INT RETURN PLUS MINUS SEQZ MUL DIV MOD LT GT LE GE EQ NEQ LOR LAND CONST IF ELSE  
 %token <str_val> IDENT
 %token <int_val> INT_CONST
 
 // 非终结符的类型定义 所有的非终结符都改成ast类型
 %type <ast_val> FuncDef FuncType Block BlockItem BlockItemVec ConstDefVec
-%type <ast_val> Stmt ExpExist Exp PrimaryExp UnaryExp UnaryOp AddExp MulExp AddOp MulOp LOrExp LAndExp EqExp RelExp EqOp RelOp ConstExp 
+%type <ast_val> ExpExist Exp PrimaryExp UnaryExp UnaryOp AddExp MulExp AddOp MulOp LOrExp LAndExp EqExp RelExp EqOp RelOp ConstExp 
 %type <ast_val> Decl ConstDecl BType ConstDef ConstInitVal LVal VarDecl VarDefVec VarDef InitVal
+%type <ast_val> Stmt MatchedStmt OpenStmt OtherStmt
 %type <int_val> Number //number我们这里是定义为int类型的
 
 %%
@@ -270,31 +271,78 @@ InitVal
 
 
 Stmt
-  : LVal '=' Exp ';'{
+  : MatchedStmt{
     auto stmt = new StmtAST();
-    stmt->flag = 0;
-    stmt->lval = unique_ptr<BaseAST>($1);
-    stmt->exp = unique_ptr<BaseAST>($3);
+    stmt->flag=0;
+    stmt->matchedstmt = unique_ptr<BaseAST>($1);
     $$ = stmt;
+  }
+  | OpenStmt{
+    auto stmt = new StmtAST();
+    stmt->flag=1;
+    stmt->openstmt = unique_ptr<BaseAST>($1);
+    $$ = stmt;
+  };
+
+MatchedStmt
+  : IF '(' Exp ')' MatchedStmt ELSE MatchedStmt{
+    auto matchedstmt = new MatchedStmtAST();
+    matchedstmt->flag=0;
+    matchedstmt->exp = unique_ptr<BaseAST>($3);
+    matchedstmt->matchedstmt1 = unique_ptr<BaseAST>($5);
+    matchedstmt->matchedstmt2 = unique_ptr<BaseAST>($7);
+    $$ = matchedstmt;
+  }
+  | OtherStmt{
+    auto matchedstmt = new MatchedStmtAST();
+    matchedstmt->flag=1;
+    matchedstmt->otherstmt = unique_ptr<BaseAST>($1);
+    $$ = matchedstmt;
+  };
+
+OpenStmt
+  : IF '(' Exp ')' MatchedStmt ELSE OpenStmt{
+    auto openstmt = new OpenStmtAST();
+    openstmt->flag = 0;
+    openstmt->exp  = unique_ptr<BaseAST>($3);
+    openstmt->matchedstmt = unique_ptr<BaseAST>($5);
+    openstmt->openstmt = unique_ptr<BaseAST>($7);
+    $$ = openstmt;
+  }
+  | IF '(' Exp ')' Stmt{
+    auto openstmt = new OpenStmtAST();
+    openstmt->flag = 1;
+    openstmt->exp = unique_ptr<BaseAST>($3);
+    openstmt->stmt = unique_ptr<BaseAST>($5);
+    $$ = openstmt;
+  };
+
+OtherStmt
+  : LVal '=' Exp ';'{
+    auto otherstmt = new OtherStmtAST();
+    otherstmt->flag = 0;
+    otherstmt->lval = unique_ptr<BaseAST>($1);
+    otherstmt->exp = unique_ptr<BaseAST>($3);
+    $$ = otherstmt;
   }
   | ExpExist ';'{
-    auto stmt = new StmtAST();
-    stmt->flag = 1;
-    stmt->expexist = unique_ptr<BaseAST>($1);
-    $$ = stmt;
+    auto otherstmt = new OtherStmtAST();
+    otherstmt->flag = 1;
+    otherstmt->expexist = unique_ptr<BaseAST>($1);
+    $$ = otherstmt;
   }
   | Block {
-    auto stmt = new StmtAST();
-    stmt->flag = 2;
-    stmt->block = unique_ptr<BaseAST>($1);
-    $$ = stmt;
+    auto otherstmt = new OtherStmtAST();
+    otherstmt->flag = 2;
+    otherstmt->block = unique_ptr<BaseAST>($1);
+    $$ = otherstmt;
 
   }
   | RETURN ExpExist ';' {
-    auto stmt = new StmtAST();
-    stmt->flag = 3; 
-    stmt->expexist = unique_ptr<BaseAST>($2);
-    $$ = stmt;
+    auto otherstmt = new OtherStmtAST();
+    otherstmt->flag = 3; 
+    otherstmt->expexist = unique_ptr<BaseAST>($2);
+    $$ = otherstmt;
   };
 
 ExpExist

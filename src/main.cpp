@@ -62,6 +62,7 @@ int main(int argc, const char* argv[]) {
 		std::cout << RiscV << endl;
 	}
 	fclose(stdout);
+	int x=0;
 
 	return 0;
 }

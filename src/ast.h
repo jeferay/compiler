@@ -131,11 +131,32 @@ public:
 	}
 };
 
+class Basic_Block {
+public:
+	static int block_num;
+	int block_id;
+	Basic_Block* left;
+	Basic_Block* right;
+	Basic_Block(Basic_Block*_left,Basic_Block*_right){
+		block_id = block_num++;
+		left = _left;
+		right = _right;
+	}
+	void output_into_block(char* IR) {
+		string temp_IR = "\%block" + to_string(block_id) + ":\n";
+		strcat(IR, const_cast<char*>(temp_IR.c_str()));
+	}
+	string get_block_name() {
+		return "\%block" + to_string(block_id);
+	}
+};
+
 
 // 所有 AST 的基类，我们可以理解为一个节点，可以是叶节点或者内部节点，如果是叶节点表示终结符
 class BaseAST {
 public:
 	int flag;
+	int for_branch;//用来记录是否是为了分支，给所有的exp用
 	IR_Ins_Value IRV;
 	BaseAST() :flag(-1) {}
 	virtual ~BaseAST() {};
@@ -150,7 +171,7 @@ public:
 	std::unique_ptr<BaseAST> func_def;
 	CompUnitAST();
 	virtual ~CompUnitAST() override;
-	
+
 	virtual void Dump_IR(char* IR) override;
 };
 
@@ -161,7 +182,7 @@ public:
 	std::unique_ptr<BaseAST> block;
 	FuncDefAST();
 	virtual ~FuncDefAST() override;
-	
+
 	virtual void Dump_IR(char* IR) override;
 };
 
@@ -171,7 +192,7 @@ public:
 	std::unique_ptr<BaseAST> blockitemvec;
 	BlockAST();
 	virtual ~BlockAST() override;
-	
+
 	virtual void Dump_IR(char* IR) override;
 };
 
@@ -194,7 +215,7 @@ public:
 	BlockItemVecAST();
 	virtual ~BlockItemVecAST() override;
 	virtual void Dump_IR(char* IR) override;
-	
+
 };
 
 // BlockItem::=Decl|Stmt
@@ -206,7 +227,7 @@ public:
 	virtual~BlockItemAST() override;
 	virtual void Dump_IR(char* IR) override;
 
-	
+
 };
 
 // Decl::=ConstDecl|VarDecl
@@ -218,7 +239,7 @@ public:
 	virtual ~DeclAST()override;
 	virtual void Dump_IR(char* IR) override;
 
-	
+
 
 };
 
@@ -280,7 +301,7 @@ public:
 	std::string ident;
 	LValAST();
 	virtual  ~LValAST();
-	
+
 	virtual void Dump_IR(char* IR)override;
 };
 
@@ -300,7 +321,7 @@ public:
 	std::unique_ptr<BaseAST> vardefvec;
 	VarDeclAST();
 	virtual  ~VarDeclAST() override;
-	
+
 	virtual void Dump_IR(char* IR) override;
 };
 
@@ -310,7 +331,7 @@ public:
 	std::vector<std::unique_ptr<BaseAST>> itemvec;
 	VarDefVecAST();
 	virtual ~VarDefVecAST() override;
-	
+
 	virtual void Dump_IR(char* IR) override;
 };
 
@@ -321,7 +342,7 @@ public:
 	std::unique_ptr<BaseAST> initval;
 	VarDefAST();
 	virtual  ~VarDefAST() override;
-	
+
 	virtual void Dump_IR(char* IR) override;
 };
 
@@ -332,22 +353,61 @@ public:
 	InitValAST();
 	virtual ~InitValAST() override;
 	virtual void Dump_IR(char* IR) override;
-	
+
 };
 
 
+
+
 // StmtAST::=  Lval '=' Exp ';' | ExpExist ';' |Block | "return" ExpExist ';'
+// Stmt::=MatchedStmt|OpenStmt
 class StmtAST : public BaseAST {
+public:
+	std::unique_ptr<BaseAST> matchedstmt;
+	std::unique_ptr<BaseAST> openstmt;
+	StmtAST();
+	virtual  ~StmtAST();
+
+	virtual void Dump_IR(char* IR) override;
+};
+
+//MatchedStmtAST:: IF (Exp) MatchedStmt else MatchedStmt | OtherStmt
+class MatchedStmtAST : public BaseAST {
+public:
+	std::unique_ptr<BaseAST> exp;
+	std::unique_ptr<BaseAST>matchedstmt1;
+	std::unique_ptr<BaseAST>matchedstmt2;
+	std::unique_ptr<BaseAST>otherstmt;
+	MatchedStmtAST();
+	virtual  ~MatchedStmtAST();
+	virtual void Dump_IR(char* IR) override;
+};
+
+
+// OtherStmtAST::=  Lval '=' Exp ';' | ExpExist ';' | Block | "return" ExpExist ';'
+class OpenStmtAST :public BaseAST {
+public:
+	std::unique_ptr<BaseAST> exp;
+	std::unique_ptr<BaseAST>matchedstmt;
+	std::unique_ptr<BaseAST>openstmt;
+	std::unique_ptr<BaseAST>stmt;
+
+	OpenStmtAST();
+	virtual ~OpenStmtAST();
+	virtual void Dump_IR(char* IR) override;
+};
+
+class OtherStmtAST : public BaseAST {
 public:
 	std::unique_ptr<BaseAST> exp;
 	std::unique_ptr<BaseAST> lval;
 	std::unique_ptr<BaseAST> expexist;
 	std::unique_ptr<BaseAST> block;
-	StmtAST();
-	virtual  ~StmtAST();
-	
-	void Dump_IR(char* IR) override;
+	OtherStmtAST();
+	virtual  ~OtherStmtAST();
+	virtual void Dump_IR(char* IR) override;
 };
+
 
 // ExpExist::Exp|ε
 class ExpExistAST : public BaseAST {
@@ -355,7 +415,7 @@ public:
 	std::unique_ptr<BaseAST>exp;
 	ExpExistAST();
 	virtual ~ExpExistAST()override;
-	
+
 	virtual void Dump_IR(char* IR) override;
 };
 
@@ -379,7 +439,7 @@ public:
 	UnaryExpAST();
 	virtual  ~UnaryExpAST() override;
 	int calculate() override;
-	
+
 	void Dump_IR(char* IR) override;
 };
 
@@ -392,7 +452,7 @@ public:
 	PrimaryExpAST();
 	virtual  ~PrimaryExpAST()override;
 	int calculate() override;
-	
+
 	void Dump_IR(char* IR) override;
 };
 
@@ -405,7 +465,7 @@ public:
 	AddExpAST();
 	virtual ~AddExpAST()override;
 	int calculate() override;
-	
+
 	void Dump_IR(char* IR) override;
 };
 
@@ -419,7 +479,7 @@ public:
 	int calculate() override;
 	MulExpAST();
 	virtual ~MulExpAST() override;
-	
+
 	void Dump_IR(char* IR) override;
 };
 
@@ -433,7 +493,7 @@ public:
 	RelExpAST();
 	virtual  ~RelExpAST()override;
 	int calculate() override;
-	
+
 	void Dump_IR(char* IR) override;
 };
 
@@ -448,7 +508,7 @@ public:
 	virtual ~EqExpAST() override;
 	int calculate() override;
 
-	
+
 	void Dump_IR(char* IR) override;
 };
 
@@ -461,7 +521,7 @@ public:
 	LAndExpAST();
 	virtual ~LAndExpAST()override;
 	int calculate() override;
-	
+
 	void Dump_IR(char* IR) override;
 };
 
@@ -474,7 +534,7 @@ public:
 	LOrExpAST();
 	virtual ~LOrExpAST() override;
 	int calculate() override;
-	
+
 	void Dump_IR(char* IR) override;
 
 };
