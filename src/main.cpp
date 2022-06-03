@@ -46,21 +46,21 @@ int main(int argc, const char* argv[]) {
 	// // 输出解析得到的 Koopa IR
 
 	char IR[1024000] = { 0 };
-	// ast->Set_IRV(0);//在外部提前set好 start point =0
 	ast->Dump_IR(IR);
 	cout << IR << endl;
-
-	char RiscV[102400] = { 0 };
-	KoopaIR_2_RiscV(IR,RiscV);
-	// cout<<RiscV<<endl;
-
 	freopen(output, "w", stdout);
 	if (!strcmp(mode, "-koopa"))
 		std::cout << IR << endl;
-	else if (!strcmp(mode, "-riscv"))
+	fclose(stdout);
+	
+
+	char RiscV[102400] = { 0 };
+	KoopaIR_2_RiscV(IR,RiscV);
+	cout<<RiscV<<endl;
+	freopen(output, "w", stdout);
+	if (!strcmp(mode, "-riscv"))
 		std::cout << RiscV << endl;
 	fclose(stdout);
-
 	return 0;
 }
 
