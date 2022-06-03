@@ -236,7 +236,7 @@ void StmtAST::Dump_IR(char* IR) {
 	case 2: {
 		std::shared_ptr<SymbolTable> son_table = std::shared_ptr<SymbolTable>(new SymbolTable(now_table));
 		assert(son_table->pre_table == now_table);
-		now_table = son_table;
+		now_table = son_table; 
 		block->Dump_IR(IR);
 		now_table = son_table->pre_table;
 		break;

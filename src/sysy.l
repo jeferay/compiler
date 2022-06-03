@@ -54,6 +54,8 @@ Hexadecimal   0[xX][0-9a-fA-F]+
 "||"            { yylval.str_val = new string(yytext); return LOR; }
 "&&"            { yylval.str_val = new string(yytext); return LAND; }
 "const"         { yylval.str_val = new string(yytext); return CONST; }
+"if"            { yylval.str_val = new string(yytext); return IF; }
+"else"          { yylval.str_val = new string(yytext); return ELSE; }
 
 
 

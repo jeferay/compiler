@@ -150,7 +150,7 @@ public:
 	std::unique_ptr<BaseAST> func_def;
 	CompUnitAST();
 	virtual ~CompUnitAST() override;
-	
+
 	virtual void Dump_IR(char* IR) override;
 };
 
@@ -161,7 +161,7 @@ public:
 	std::unique_ptr<BaseAST> block;
 	FuncDefAST();
 	virtual ~FuncDefAST() override;
-	
+
 	virtual void Dump_IR(char* IR) override;
 };
 
@@ -171,7 +171,7 @@ public:
 	std::unique_ptr<BaseAST> blockitemvec;
 	BlockAST();
 	virtual ~BlockAST() override;
-	
+
 	virtual void Dump_IR(char* IR) override;
 };
 
@@ -194,7 +194,7 @@ public:
 	BlockItemVecAST();
 	virtual ~BlockItemVecAST() override;
 	virtual void Dump_IR(char* IR) override;
-	
+
 };
 
 // BlockItem::=Decl|Stmt
@@ -206,7 +206,7 @@ public:
 	virtual~BlockItemAST() override;
 	virtual void Dump_IR(char* IR) override;
 
-	
+
 };
 
 // Decl::=ConstDecl|VarDecl
@@ -218,7 +218,7 @@ public:
 	virtual ~DeclAST()override;
 	virtual void Dump_IR(char* IR) override;
 
-	
+
 
 };
 
@@ -280,7 +280,7 @@ public:
 	std::string ident;
 	LValAST();
 	virtual  ~LValAST();
-	
+
 	virtual void Dump_IR(char* IR)override;
 };
 
@@ -300,7 +300,7 @@ public:
 	std::unique_ptr<BaseAST> vardefvec;
 	VarDeclAST();
 	virtual  ~VarDeclAST() override;
-	
+
 	virtual void Dump_IR(char* IR) override;
 };
 
@@ -310,7 +310,7 @@ public:
 	std::vector<std::unique_ptr<BaseAST>> itemvec;
 	VarDefVecAST();
 	virtual ~VarDefVecAST() override;
-	
+
 	virtual void Dump_IR(char* IR) override;
 };
 
@@ -321,7 +321,7 @@ public:
 	std::unique_ptr<BaseAST> initval;
 	VarDefAST();
 	virtual  ~VarDefAST() override;
-	
+
 	virtual void Dump_IR(char* IR) override;
 };
 
@@ -332,8 +332,10 @@ public:
 	InitValAST();
 	virtual ~InitValAST() override;
 	virtual void Dump_IR(char* IR) override;
-	
+
 };
+
+
 
 
 // StmtAST::=  Lval '=' Exp ';' | ExpExist ';' |Block | "return" ExpExist ';'
@@ -345,9 +347,43 @@ public:
 	std::unique_ptr<BaseAST> block;
 	StmtAST();
 	virtual  ~StmtAST();
-	
-	void Dump_IR(char* IR) override;
+
+	virtual void Dump_IR(char* IR) override;
 };
+
+class MatchedStmtAST : public BaseAST {
+	std::unique_ptr<BaseAST> exp;
+	std::unique_ptr<BaseAST>matched_stmt1;
+	std::unique_ptr<BaseAST>matched_stmt2;
+	std::unique_ptr<BaseAST>other_stmt;
+	MatchedStmtAST();
+	virtual  ~MatchedStmtAST();
+	virtual void Dump_IR(char* IR) override;
+
+};
+
+class OpenStmtAST :public BaseAST {
+	std::unique_ptr<BaseAST> exp;
+	std::unique_ptr<BaseAST>matched_stmt;
+	std::unique_ptr<BaseAST> exp;
+	std::unique_ptr<BaseAST>open_stmt;
+	std::unique_ptr<BaseAST>stmt;
+
+	OpenStmtAST();
+	virtual ~OpenStmtAST();
+	virtual void Dump_IR(char* IR) override;
+};
+
+class OtherStmtAST : public BaseAST {
+	std::unique_ptr<BaseAST> exp;
+	std::unique_ptr<BaseAST> lval;
+	std::unique_ptr<BaseAST> expexist;
+	std::unique_ptr<BaseAST> block;
+	OtherStmtAST();
+	virtual  ~OtherStmtAST();
+	virtual void Dump_IR(char* IR) override;
+};
+
 
 // ExpExist::Exp|ε
 class ExpExistAST : public BaseAST {
@@ -355,7 +391,7 @@ public:
 	std::unique_ptr<BaseAST>exp;
 	ExpExistAST();
 	virtual ~ExpExistAST()override;
-	
+
 	virtual void Dump_IR(char* IR) override;
 };
 
@@ -366,7 +402,7 @@ public:
 	ExpAST();
 	virtual ~ExpAST();
 	int calculate() override;
-	
+
 	void Dump_IR(char* IR) override;
 };
 
@@ -379,7 +415,7 @@ public:
 	UnaryExpAST();
 	virtual  ~UnaryExpAST() override;
 	int calculate() override;
-	
+
 	void Dump_IR(char* IR) override;
 };
 
@@ -392,7 +428,7 @@ public:
 	PrimaryExpAST();
 	virtual  ~PrimaryExpAST()override;
 	int calculate() override;
-	
+
 	void Dump_IR(char* IR) override;
 };
 
@@ -405,7 +441,7 @@ public:
 	AddExpAST();
 	virtual ~AddExpAST()override;
 	int calculate() override;
-	
+
 	void Dump_IR(char* IR) override;
 };
 
@@ -419,7 +455,7 @@ public:
 	int calculate() override;
 	MulExpAST();
 	virtual ~MulExpAST() override;
-	
+
 	void Dump_IR(char* IR) override;
 };
 
@@ -433,7 +469,7 @@ public:
 	RelExpAST();
 	virtual  ~RelExpAST()override;
 	int calculate() override;
-	
+
 	void Dump_IR(char* IR) override;
 };
 
@@ -448,7 +484,7 @@ public:
 	virtual ~EqExpAST() override;
 	int calculate() override;
 
-	
+
 	void Dump_IR(char* IR) override;
 };
 
@@ -461,7 +497,7 @@ public:
 	LAndExpAST();
 	virtual ~LAndExpAST()override;
 	int calculate() override;
-	
+
 	void Dump_IR(char* IR) override;
 };
 
@@ -474,7 +510,7 @@ public:
 	LOrExpAST();
 	virtual ~LOrExpAST() override;
 	int calculate() override;
-	
+
 	void Dump_IR(char* IR) override;
 
 };
