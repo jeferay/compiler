@@ -365,7 +365,6 @@ class MatchedStmtAST : public BaseAST {
 class OpenStmtAST :public BaseAST {
 	std::unique_ptr<BaseAST> exp;
 	std::unique_ptr<BaseAST>matched_stmt;
-	std::unique_ptr<BaseAST> exp;
 	std::unique_ptr<BaseAST>open_stmt;
 	std::unique_ptr<BaseAST>stmt;
 
