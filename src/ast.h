@@ -359,7 +359,6 @@ class MatchedStmtAST : public BaseAST {
 	MatchedStmtAST();
 	virtual  ~MatchedStmtAST();
 	virtual void Dump_IR(char* IR) override;
-
 };
 
 class OpenStmtAST :public BaseAST {
@@ -401,6 +400,7 @@ public:
 	ExpAST();
 	virtual ~ExpAST();
 	int calculate() override;
+	int for_branch;//用来记录是否是为了分支
 
 	void Dump_IR(char* IR) override;
 };
