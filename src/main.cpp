@@ -51,7 +51,7 @@ int main(int argc, const char* argv[]) {
 	cout << IR << endl;
 
 	char RiscV[102400] = { 0 };
-	// KoopaIR_2_RiscV(IR,RiscV);
+	KoopaIR_2_RiscV(IR,RiscV);
 	// cout<<RiscV<<endl;
 
 	freopen(output, "w", stdout);
