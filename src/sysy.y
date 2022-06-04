@@ -69,7 +69,9 @@ CompUnit
     auto comp_unit = make_unique<CompUnitAST>(); // 自动声明为一个compunitast的智能指针并且创建
     comp_unit->func_def = unique_ptr<BaseAST>($1);
     ast = move(comp_unit);
-  };
+  }
+  |{}
+  ;
 
 
 // FuncDef ::= FuncType IDENT '(' ')' Block;
