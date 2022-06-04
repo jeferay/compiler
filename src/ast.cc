@@ -393,7 +393,7 @@ void OtherStmtAST::Dump_IR(char* IR) {
 		now_table = son_table;
 		block->Dump_IR(IR);
 		if (now_block){
-			temp_IR = "  jump " + now_block->left->get_block_name() + "\n\n";
+			std::string temp_IR = "  jump " + now_block->left->get_block_name() + "\n\n";
 			strcat(IR, const_cast<char*>(temp_IR.c_str()));
 			delete now_block;
 			now_block = NULL;
