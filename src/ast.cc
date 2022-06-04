@@ -316,18 +316,12 @@ void OpenStmtAST::Dump_IR(char* IR) {
 		now_block->output_into_block(IR);
 	}
 	if (flag == 0) {
-		Basic_Block* block_end = now_block->left;
-		if (now_block->left == NULL) {
-			block_end = new Basic_Block(NULL, NULL);
-			bb_stack.push_back(block_end);
-		}
+		Basic_Block* block_end = new Basic_Block(now_block->left,NULL);
+		bb_stack.push_back(block_end);
 		Basic_Block* block_else = new Basic_Block(block_end, NULL);
-		Basic_Block* block_if = new Basic_Block(block_end, NULL);
-		// Basic_Block* block_exp = new Basic_Block(block_if, block_else);
-		
 		bb_stack.push_back(block_else);
+		Basic_Block* block_if = new Basic_Block(block_end, NULL);
 		bb_stack.push_back(block_if);
-		// Basic_Block* block_exp = new Basic_Block(block_if, block_else);
 		exp->Dump_IR(IR);
 
 		string temp_IR = "  br " + exp->IRV.get_IR_value() + ", " + block_if->get_block_name() + ", " + block_else->get_block_name() + "\n\n";
@@ -352,11 +346,8 @@ void OpenStmtAST::Dump_IR(char* IR) {
 		}
 	}
 	else if (flag == 1) {
-		Basic_Block* block_end = now_block->left;
-		if (now_block->left == NULL) {
-			block_end = new Basic_Block(NULL, NULL);
-			bb_stack.push_back(block_end);
-		}
+		Basic_Block* block_end = new Basic_Block(now_block->left,NULL);
+		bb_stack.push_back(block_end);
 		Basic_Block* block_if = new Basic_Block(block_end, NULL);
 		bb_stack.push_back(block_if);
 		exp->Dump_IR(IR);
@@ -401,6 +392,12 @@ void OtherStmtAST::Dump_IR(char* IR) {
 		assert(son_table->pre_table == now_table);
 		now_table = son_table;
 		block->Dump_IR(IR);
+		if (now_block){
+			temp_IR = "  jump " + now_block->left->get_block_name() + "\n\n";
+			strcat(IR, const_cast<char*>(temp_IR.c_str()));
+			delete now_block;
+			now_block = NULL;
+		}
 		now_table = son_table->pre_table;
 		break;
 	}
