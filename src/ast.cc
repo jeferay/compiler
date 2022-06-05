@@ -33,7 +33,7 @@ Basic_Block* get_new_bb() {
 CompUnitAST::CompUnitAST() {}
 CompUnitAST::~CompUnitAST() {}
 
-void CompUnitAST::Dump_IR(char* IR) {
+void CompUnitAST::Dump_IR(char* IR, int last_sentence=0) {
 
 	func_def->Dump_IR(IR);
 	IRV = func_def->IRV;
@@ -43,7 +43,7 @@ void CompUnitAST::Dump_IR(char* IR) {
 FuncDefAST::FuncDefAST() {}
 FuncDefAST::~FuncDefAST() {}
 
-void FuncDefAST::Dump_IR(char* IR) {
+void FuncDefAST::Dump_IR(char* IR, int last_sentence=0) {
 	strcat(IR, "fun @");
 	strcat(IR, const_cast<char*>(ident.c_str()));
 	strcat(IR, "(): ");
@@ -53,7 +53,7 @@ void FuncDefAST::Dump_IR(char* IR) {
 	strcat(IR, "}\n");
 }
 
-void FuncTypeAST::Dump_IR(char* IR) {
+void FuncTypeAST::Dump_IR(char* IR, int last_sentence=0) {
 	if (type == "int") {
 		strcat(IR, "i32 {\n");
 	}
@@ -67,7 +67,7 @@ FuncTypeAST::~FuncTypeAST() {}
 BlockAST::BlockAST() {}
 BlockAST::~BlockAST() {}
 
-void BlockAST::Dump_IR(char* IR) {
+void BlockAST::Dump_IR(char* IR, int last_sentence=0) {
 	if (now_block == NULL) {
 		now_block = get_new_bb();
 		now_block->output_into_block(IR);
@@ -82,9 +82,9 @@ void BlockAST::Dump_IR(char* IR) {
 BlockItemVecAST::BlockItemVecAST() {}
 BlockItemVecAST::~BlockItemVecAST() {}
 
-void BlockItemVecAST::Dump_IR(char* IR) {
+void BlockItemVecAST::Dump_IR(char* IR, int last_sentence=0) {
 	for (int i = 0; i < itemvec.size(); i++) {
-		itemvec[i]->Dump_IR(IR);
+		itemvec[i]->Dump_IR(IR, i==(itemvec.size()-1));
 	}
 }
 
@@ -95,16 +95,16 @@ BlockItemAST::BlockItemAST() {}
 BlockItemAST::~BlockItemAST() {}
 
 //每一条语句重新判定一下
-void BlockItemAST::Dump_IR(char* IR) {
+void BlockItemAST::Dump_IR(char* IR, int last_sentence=0) {
 	if (now_block == NULL) {
 		now_block = get_new_bb();
 		now_block->output_into_block(IR);
 	}
 	if (flag == 0) {
-		decl->Dump_IR(IR);
+		decl->Dump_IR(IR,last_sentence);
 	}
 	else if (flag == 1) {
-		stmt->Dump_IR(IR);
+		stmt->Dump_IR(IR,last_sentence);
 	}
 }
 
@@ -113,7 +113,7 @@ DeclAST::DeclAST() {}
 DeclAST::~DeclAST() {}
 
 
-void DeclAST::Dump_IR(char* IR) {
+void DeclAST::Dump_IR(char* IR, int last_sentence=0) {
 	if (flag == 0) {
 		constdecl->Dump_IR(IR);
 	}// const定义也需要定义dump IR 插入表格
@@ -127,7 +127,7 @@ void DeclAST::Dump_IR(char* IR) {
 ConstDeclAST::ConstDeclAST() {}
 ConstDeclAST::~ConstDeclAST() {}
 
-void ConstDeclAST::Dump_IR(char* IR) {
+void ConstDeclAST::Dump_IR(char* IR, int last_sentence=0) {
 	constdefvec->Dump_IR(IR);
 }
 
@@ -135,7 +135,7 @@ void ConstDeclAST::Dump_IR(char* IR) {
 ConstDefVecAST::ConstDefVecAST() {}
 ConstDefVecAST::~ConstDefVecAST() {}
 
-void ConstDefVecAST::Dump_IR(char* IR) {
+void ConstDefVecAST::Dump_IR(char* IR, int last_sentence=0) {
 	for (int i = 0; i < itemvec.size(); i++) {
 		itemvec[i]->Dump_IR(IR);
 	}
@@ -150,7 +150,7 @@ int ConstDefAST::calculate() {
 	return constinitval->calculate();
 }
 
-void ConstDefAST::Dump_IR(char* IR) {
+void ConstDefAST::Dump_IR(char* IR, int last_sentence=0) {
 	int const_value = calculate();
 	now_table->insert(ident, ConstVar, const_value);
 }
@@ -167,7 +167,7 @@ LValAST::LValAST() {}
 LValAST::~LValAST() {}
 
 
-void LValAST::Dump_IR(char* IR) {
+void LValAST::Dump_IR(char* IR, int last_sentence=0) {
 	Varient* v = now_table->search_until_root(ident);
 	if (v->tag == ConstVar) {
 		IRV.set_value(Integer, v->value);
@@ -192,7 +192,7 @@ int ConstExpAST::calculate() {
 VarDeclAST::VarDeclAST() {}
 VarDeclAST::~VarDeclAST() {}
 
-void VarDeclAST::Dump_IR(char* IR) {
+void VarDeclAST::Dump_IR(char* IR, int last_sentence=0) {
 	vardefvec->Dump_IR(IR);
 }
 
@@ -201,7 +201,7 @@ VarDefVecAST::VarDefVecAST() {}
 VarDefVecAST::~VarDefVecAST() {}
 
 
-void VarDefVecAST::Dump_IR(char* IR) {
+void VarDefVecAST::Dump_IR(char* IR, int last_sentence=0) {
 	for (int i = 0; i < itemvec.size(); ++i) {
 		itemvec[i]->Dump_IR(IR);
 	}
@@ -211,7 +211,7 @@ void VarDefVecAST::Dump_IR(char* IR) {
 VarDefAST::VarDefAST() {}
 VarDefAST::~VarDefAST() {}
 
-void VarDefAST::Dump_IR(char* IR) {
+void VarDefAST::Dump_IR(char* IR, int last_sentence=0) {
 	now_table->insert(ident, Var, 0);
 	Varient* temp_var = now_table->search_until_root(ident);
 	std::string str_value = temp_var->get_str_value();
@@ -229,7 +229,7 @@ void VarDefAST::Dump_IR(char* IR) {
 InitValAST::InitValAST() {}
 InitValAST::~InitValAST() {}
 
-void InitValAST::Dump_IR(char* IR) {
+void InitValAST::Dump_IR(char* IR, int last_sentence=0) {
 	exp->Dump_IR(IR);
 	IRV = exp->IRV;
 }
@@ -240,16 +240,16 @@ void InitValAST::Dump_IR(char* IR) {
 StmtAST::StmtAST() {}
 StmtAST::~StmtAST() {}
 
-void StmtAST::Dump_IR(char* IR) {
+void StmtAST::Dump_IR(char* IR, int last_sentence=0) {
 	if (now_block == NULL) {
 		now_block = get_new_bb();
 		now_block->output_into_block(IR);
 	}
 	if (flag == 0) {
-		matchedstmt->Dump_IR(IR);
+		matchedstmt->Dump_IR(IR,last_sentence);
 	}
 	else if (flag == 1) {
-		openstmt->Dump_IR(IR);
+		openstmt->Dump_IR(IR,last_sentence);
 	}
 }
 
@@ -257,15 +257,15 @@ void StmtAST::Dump_IR(char* IR) {
 MatchedStmtAST::MatchedStmtAST() {}
 MatchedStmtAST::~MatchedStmtAST() {}
 
-void MatchedStmtAST::Dump_IR(char* IR) {
+void MatchedStmtAST::Dump_IR(char* IR, int last_sentence=0) {
 	if (now_block == NULL) {
 		now_block = get_new_bb();
 		now_block->output_into_block(IR);
 	}
 	if (flag == 0) {
 		Basic_Block* block_end = now_block->left;
-		if (now_block->left == NULL) {
-			block_end = new Basic_Block(NULL, NULL);
+		if (last_sentence!=false) {
+			block_end = new Basic_Block(now_block>left, NULL);
 			bb_stack.push_back(block_end);
 		}
 		Basic_Block* block_else = new Basic_Block(block_end, NULL);
@@ -310,22 +310,20 @@ void MatchedStmtAST::Dump_IR(char* IR) {
 OpenStmtAST::OpenStmtAST() {}
 OpenStmtAST::~OpenStmtAST() {}
 // 在dump中新增几个basic block意味着dump之后就要删除几个
-void OpenStmtAST::Dump_IR(char* IR) {
+void OpenStmtAST::Dump_IR(char* IR, int last_sentence=0) {
 	if (now_block == NULL) {
 		now_block = get_new_bb();
 		now_block->output_into_block(IR);
 	}
 	if (flag == 0) {
 		Basic_Block* block_end = now_block->left;
-		if (now_block->left == NULL) {
-			block_end = new Basic_Block(NULL, NULL);
+		if (last_sentence!=false) {
+			block_end = new Basic_Block(now_block>left, NULL);
 			bb_stack.push_back(block_end);
 		}
 		Basic_Block* block_else = new Basic_Block(block_end, NULL);
-		Basic_Block* block_if = new Basic_Block(block_end, NULL);
-		// Basic_Block* block_exp = new Basic_Block(block_if, block_else);
-		
 		bb_stack.push_back(block_else);
+		Basic_Block* block_if = new Basic_Block(block_end, NULL);
 		bb_stack.push_back(block_if);
 		// Basic_Block* block_exp = new Basic_Block(block_if, block_else);
 		exp->Dump_IR(IR);
@@ -353,8 +351,8 @@ void OpenStmtAST::Dump_IR(char* IR) {
 	}
 	else if (flag == 1) {
 		Basic_Block* block_end = now_block->left;
-		if (now_block->left == NULL) {
-			block_end = new Basic_Block(NULL, NULL);
+		if (last_sentence!=false) {
+			block_end = new Basic_Block(now_block>left, NULL);
 			bb_stack.push_back(block_end);
 		}
 		Basic_Block* block_if = new Basic_Block(block_end, NULL);
@@ -380,7 +378,7 @@ void OpenStmtAST::Dump_IR(char* IR) {
 OtherStmtAST::OtherStmtAST() {}
 OtherStmtAST::~OtherStmtAST() {}
 
-void OtherStmtAST::Dump_IR(char* IR) {
+void OtherStmtAST::Dump_IR(char* IR, int last_sentence=0) {
 	switch (flag)
 	{
 	case 0: {
@@ -429,7 +427,7 @@ ExpExistAST::ExpExistAST() {}
 ExpExistAST::~ExpExistAST() {}
 
 
-void ExpExistAST::Dump_IR(char* IR) {
+void ExpExistAST::Dump_IR(char* IR, int last_sentence=0) {
 	if (flag == 0) {
 		exp->Dump_IR(IR);
 		IRV = exp->IRV;
@@ -443,7 +441,7 @@ int ExpAST::calculate() {
 	return lorexp->calculate();
 }
 
-void ExpAST::Dump_IR(char* IR) {
+void ExpAST::Dump_IR(char* IR, int last_sentence=0) {
 	if (flag == 0) {
 		lorexp->Dump_IR(IR);
 		IRV = lorexp->IRV;
@@ -462,7 +460,7 @@ int PrimaryExpAST::calculate() {
 	return 1234567;
 }
 
-void PrimaryExpAST::Dump_IR(char* IR) {
+void PrimaryExpAST::Dump_IR(char* IR, int last_sentence=0) {
 
 	switch (flag) {
 	case 0: {
@@ -498,7 +496,7 @@ int UnaryExpAST::calculate() {
 	}
 	return 1234567;
 }
-void UnaryExpAST::Dump_IR(char* IR) {
+void UnaryExpAST::Dump_IR(char* IR, int last_sentence=0) {
 	// Set_IRV(); // 总是要先set irv
 	if (flag == 0) {
 		primaryexp->Dump_IR(IR);
@@ -546,7 +544,7 @@ int MulExpAST::calculate() {
 	return 1234567;
 }
 
-void MulExpAST::Dump_IR(char* IR) {
+void MulExpAST::Dump_IR(char* IR, int last_sentence=0) {
 	if (flag == 0) {
 		unaryexp->Dump_IR(IR);
 		IRV = unaryexp->IRV;
@@ -579,7 +577,7 @@ int AddExpAST::calculate() {
 	return 1234567;
 }
 
-void AddExpAST::Dump_IR(char* IR) {
+void AddExpAST::Dump_IR(char* IR, int last_sentence=0) {
 	if (flag == 0) {
 		mulexp->Dump_IR(IR);
 		IRV = mulexp->IRV;
@@ -619,7 +617,7 @@ int RelExpAST::calculate() {
 	return 1234567;
 }
 
-void RelExpAST::Dump_IR(char* IR) {
+void RelExpAST::Dump_IR(char* IR, int last_sentence=0) {
 	if (flag == 0) {
 		addexp->Dump_IR(IR);
 		IRV = addexp->IRV;
@@ -660,7 +658,7 @@ int EqExpAST::calculate() {
 	return 1234567;
 }
 
-void EqExpAST::Dump_IR(char* IR) {
+void EqExpAST::Dump_IR(char* IR, int last_sentence=0) {
 	if (flag == 0) {
 		relexp->Dump_IR(IR);
 		IRV = relexp->IRV;
@@ -695,7 +693,7 @@ int LAndExpAST::calculate() {
 }
 
 
-void LAndExpAST::Dump_IR(char* IR) {
+void LAndExpAST::Dump_IR(char* IR, int last_sentence=0) {
 	if (flag == 0) {
 		eqexp->Dump_IR(IR);
 		IRV = eqexp->IRV;
@@ -724,7 +722,7 @@ int LOrExpAST::calculate() {
 	return 1234567;
 }
 
-void LOrExpAST::Dump_IR(char* IR) {
+void LOrExpAST::Dump_IR(char* IR, int last_sentence=0) {
 	if (flag == 0) {
 		landexp->Dump_IR(IR);
 		IRV = landexp->IRV;
@@ -753,9 +751,9 @@ RelOpAST::RelOpAST() {}
 RelOpAST::~RelOpAST() {}
 EqOpAST::EqOpAST() {}
 EqOpAST::~EqOpAST() {}
-void UnaryOpAST::Dump_IR(char* IR) { assert(false); }// UnaryOp ::= "+" | "-" | "!";
-void AddOpAST::Dump_IR(char* IR) { assert(false); }// AddOp ::= "+" | "-"
-void MulOpAST::Dump_IR(char* IR) { assert(false); }// MulOp ::= "*" | "/" | "%"
-void RelOpAST::Dump_IR(char* IR) { assert(false); }// ("<" | ">" | "<=" | ">=")
-void EqOpAST::Dump_IR(char* IR) { assert(false); }//("==" | "!=")
+void UnaryOpAST::Dump_IR(char* IR, int last_sentence=0) { assert(false); }// UnaryOp ::= "+" | "-" | "!";
+void AddOpAST::Dump_IR(char* IR, int last_sentence=0) { assert(false); }// AddOp ::= "+" | "-"
+void MulOpAST::Dump_IR(char* IR, int last_sentence=0) { assert(false); }// MulOp ::= "*" | "/" | "%"
+void RelOpAST::Dump_IR(char* IR, int last_sentence=0) { assert(false); }// ("<" | ">" | "<=" | ">=")
+void EqOpAST::Dump_IR(char* IR, int last_sentence=0) { assert(false); }//("==" | "!=")
 
