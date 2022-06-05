@@ -47,7 +47,7 @@ int main(int argc, const char* argv[]) {
 
 	char IR[1024000] = { 0 };
 	// ast->Set_IRV(0);//在外部提前set好 start point =0
-	ast->Dump_IR(IR);
+	ast->Dump_IR(IR,0);
 	cout << IR << endl;
 
 	char RiscV[102400] = { 0 };

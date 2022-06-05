@@ -35,7 +35,7 @@ CompUnitAST::~CompUnitAST() {}
 
 void CompUnitAST::Dump_IR(char* IR, int last_sentence=0) {
 
-	func_def->Dump_IR(IR);
+	func_def->Dump_IR(IR,last_sentence);
 	IRV = func_def->IRV;
 }
 
@@ -47,8 +47,8 @@ void FuncDefAST::Dump_IR(char* IR, int last_sentence=0) {
 	strcat(IR, "fun @");
 	strcat(IR, const_cast<char*>(ident.c_str()));
 	strcat(IR, "(): ");
-	func_type->Dump_IR(IR);
-	block->Dump_IR(IR);
+	func_type->Dump_IR(IR,last_sentence);
+	block->Dump_IR(IR,last_sentence);
 	IRV = block->IRV;
 	strcat(IR, "}\n");
 }
@@ -69,11 +69,11 @@ BlockAST::~BlockAST() {}
 
 void BlockAST::Dump_IR(char* IR, int last_sentence=0) {
 	if (now_block == NULL) {
-		now_block = get_new_bb();
+		now_block = get_new_bb();//并不入栈
 		now_block->output_into_block(IR);
 	}
 	if (flag == 1) {
-		blockitemvec->Dump_IR(IR);
+		blockitemvec->Dump_IR(IR,last_sentence);
 		IRV = blockitemvec->IRV;
 	}
 }
@@ -84,7 +84,14 @@ BlockItemVecAST::~BlockItemVecAST() {}
 
 void BlockItemVecAST::Dump_IR(char* IR, int last_sentence=0) {
 	for (int i = 0; i < itemvec.size(); i++) {
-		itemvec[i]->Dump_IR(IR, i==(itemvec.size()-1));
+		int _last = (itemvec.size()-1) == i;
+		itemvec[i]->Dump_IR(IR, _last);
+		// if (_last&&now_block&&now_block->left){
+		// 	std::string temp_IR = "  jump " + now_block->left->get_block_name() + "\n\n";
+		// 	strcat(IR, const_cast<char*>(temp_IR.c_str()));
+		// 	delete now_block;
+		// 	now_block = NULL;
+		// }
 	}
 }
 
@@ -94,7 +101,7 @@ void BlockItemVecAST::Dump_IR(char* IR, int last_sentence=0) {
 BlockItemAST::BlockItemAST() {}
 BlockItemAST::~BlockItemAST() {}
 
-//每一条语句重新判定一下
+//每一条语句重新判定一下，两个return
 void BlockItemAST::Dump_IR(char* IR, int last_sentence=0) {
 	if (now_block == NULL) {
 		now_block = get_new_bb();
@@ -115,10 +122,10 @@ DeclAST::~DeclAST() {}
 
 void DeclAST::Dump_IR(char* IR, int last_sentence=0) {
 	if (flag == 0) {
-		constdecl->Dump_IR(IR);
+		constdecl->Dump_IR(IR,last_sentence);
 	}// const定义也需要定义dump IR 插入表格
 	else if (flag == 1) {
-		vardecl->Dump_IR(IR);
+		vardecl->Dump_IR(IR,last_sentence);
 	}
 }
 
@@ -128,7 +135,7 @@ ConstDeclAST::ConstDeclAST() {}
 ConstDeclAST::~ConstDeclAST() {}
 
 void ConstDeclAST::Dump_IR(char* IR, int last_sentence=0) {
-	constdefvec->Dump_IR(IR);
+	constdefvec->Dump_IR(IR,last_sentence);
 }
 
 // ConstDefVec::= ConstDefVec ',' ConstDef | ConstDef
@@ -137,7 +144,7 @@ ConstDefVecAST::~ConstDefVecAST() {}
 
 void ConstDefVecAST::Dump_IR(char* IR, int last_sentence=0) {
 	for (int i = 0; i < itemvec.size(); i++) {
-		itemvec[i]->Dump_IR(IR);
+		itemvec[i]->Dump_IR(IR,last_sentence);
 	}
 }
 BtypeAST::BtypeAST() {}
@@ -193,7 +200,7 @@ VarDeclAST::VarDeclAST() {}
 VarDeclAST::~VarDeclAST() {}
 
 void VarDeclAST::Dump_IR(char* IR, int last_sentence=0) {
-	vardefvec->Dump_IR(IR);
+	vardefvec->Dump_IR(IR,last_sentence);
 }
 
 // VarDefVec::=VarDefVec ',' VarDef | VarDef
@@ -203,7 +210,7 @@ VarDefVecAST::~VarDefVecAST() {}
 
 void VarDefVecAST::Dump_IR(char* IR, int last_sentence=0) {
 	for (int i = 0; i < itemvec.size(); ++i) {
-		itemvec[i]->Dump_IR(IR);
+		itemvec[i]->Dump_IR(IR,last_sentence);
 	}
 }
 
@@ -218,7 +225,7 @@ void VarDefAST::Dump_IR(char* IR, int last_sentence=0) {
 	std::string temp_IR = "  " + str_value + " = alloc i32\n";
 	strcat(IR, const_cast<char*>(temp_IR.c_str()));
 	if (flag == 1) {
-		initval->Dump_IR(IR);
+		initval->Dump_IR(IR,last_sentence);
 		IRV = initval->IRV;
 		temp_IR = "  store " + IRV.get_IR_value() + ", " + str_value + "\n";
 		strcat(IR, const_cast<char*>(temp_IR.c_str()));
@@ -230,7 +237,7 @@ InitValAST::InitValAST() {}
 InitValAST::~InitValAST() {}
 
 void InitValAST::Dump_IR(char* IR, int last_sentence=0) {
-	exp->Dump_IR(IR);
+	exp->Dump_IR(IR,last_sentence);
 	IRV = exp->IRV;
 }
 
@@ -264,7 +271,7 @@ void MatchedStmtAST::Dump_IR(char* IR, int last_sentence=0) {
 	}
 	if (flag == 0) {
 		Basic_Block* block_end = now_block->left;
-		if (last_sentence!=false) {
+		if (last_sentence==false) {
 			block_end = new Basic_Block(now_block->left, NULL);
 			bb_stack.push_back(block_end);
 		}
@@ -278,21 +285,21 @@ void MatchedStmtAST::Dump_IR(char* IR, int last_sentence=0) {
 		// strcat(IR, const_cast<char*>(temp_IR.c_str()));
 
 		//现在写的逻辑是不短路求值，因此exp仍然在有原来的dump范围内 顺序应该是当前block先结束，然后exp开始dump，并依次进入新的basic block
-		exp->Dump_IR(IR);
+		exp->Dump_IR(IR,last_sentence);
 		string temp_IR = "  br " + exp->IRV.get_IR_value() + ", " + block_if->get_block_name() + ", " + block_else->get_block_name() + "\n\n";
 		strcat(IR, const_cast<char*>(temp_IR.c_str()));
 		if (now_block) {
 			delete now_block;
 			now_block = NULL;
 		}
-		matchedstmt1->Dump_IR(IR);
+		matchedstmt1->Dump_IR(IR,last_sentence);
 		if (now_block) {
 			temp_IR = "  jump " + block_end->get_block_name() + "\n\n";
 			strcat(IR, const_cast<char*>(temp_IR.c_str()));
 			delete now_block;
 			now_block = NULL;
 		}
-		matchedstmt2->Dump_IR(IR);
+		matchedstmt2->Dump_IR(IR,last_sentence);
 		if (now_block) {
 			temp_IR = "  jump " + block_end->get_block_name() + "\n\n";
 			strcat(IR, const_cast<char*>(temp_IR.c_str()));
@@ -302,7 +309,7 @@ void MatchedStmtAST::Dump_IR(char* IR, int last_sentence=0) {
 	}
 
 	else if (flag == 1) {
-		otherstmt->Dump_IR(IR);
+		otherstmt->Dump_IR(IR,last_sentence);
 	}
 }
 
@@ -317,7 +324,7 @@ void OpenStmtAST::Dump_IR(char* IR, int last_sentence=0) {
 	}
 	if (flag == 0) {
 		Basic_Block* block_end = now_block->left;
-		if (last_sentence!=false) {
+		if (last_sentence==false) {
 			block_end = new Basic_Block(now_block->left, NULL);
 			bb_stack.push_back(block_end);
 		}
@@ -326,7 +333,7 @@ void OpenStmtAST::Dump_IR(char* IR, int last_sentence=0) {
 		Basic_Block* block_if = new Basic_Block(block_end, NULL);
 		bb_stack.push_back(block_if);
 		// Basic_Block* block_exp = new Basic_Block(block_if, block_else);
-		exp->Dump_IR(IR);
+		exp->Dump_IR(IR,last_sentence);
 
 		string temp_IR = "  br " + exp->IRV.get_IR_value() + ", " + block_if->get_block_name() + ", " + block_else->get_block_name() + "\n\n";
 		strcat(IR, const_cast<char*>(temp_IR.c_str()));
@@ -334,14 +341,14 @@ void OpenStmtAST::Dump_IR(char* IR, int last_sentence=0) {
 			delete now_block;
 			now_block = NULL;
 		}
-		matchedstmt->Dump_IR(IR);
+		matchedstmt->Dump_IR(IR,last_sentence);
 		if (now_block) {
 			temp_IR = "  jump " + block_end->get_block_name() + "\n\n";
 			strcat(IR, const_cast<char*>(temp_IR.c_str()));
 			delete now_block;
 			now_block = NULL;
 		}
-		openstmt->Dump_IR(IR);
+		openstmt->Dump_IR(IR,true);
 		if (now_block) {
 			temp_IR = "  jump " + block_end->get_block_name() + "\n\n";
 			strcat(IR, const_cast<char*>(temp_IR.c_str()));
@@ -351,20 +358,20 @@ void OpenStmtAST::Dump_IR(char* IR, int last_sentence=0) {
 	}
 	else if (flag == 1) {
 		Basic_Block* block_end = now_block->left;
-		if (last_sentence!=false) {
+		if (last_sentence==false) {
 			block_end = new Basic_Block(now_block->left, NULL);
 			bb_stack.push_back(block_end);
 		}
 		Basic_Block* block_if = new Basic_Block(block_end, NULL);
 		bb_stack.push_back(block_if);
-		exp->Dump_IR(IR);
+		exp->Dump_IR(IR,last_sentence);
 		string temp_IR = "  br " + exp->IRV.get_IR_value() + ", " + block_if->get_block_name() + ", " + block_end->get_block_name() + "\n\n";
 		strcat(IR, const_cast<char*>(temp_IR.c_str()));
 		if (now_block) {
 			delete now_block;
 			now_block = NULL;
 		}
-		stmt->Dump_IR(IR);
+		stmt->Dump_IR(IR,true);
 		if (now_block) {
 			temp_IR = "  jump " + block_end->get_block_name() + "\n\n";
 			strcat(IR, const_cast<char*>(temp_IR.c_str()));
@@ -382,7 +389,7 @@ void OtherStmtAST::Dump_IR(char* IR, int last_sentence=0) {
 	switch (flag)
 	{
 	case 0: {
-		exp->Dump_IR(IR);
+		exp->Dump_IR(IR,last_sentence);
 		IRV = exp->IRV;
 		std::string key = dynamic_cast<LValAST&>(*lval).ident;
 		std::string temp_IR = "  store " + IRV.get_IR_value() + ", " + (now_table->search_until_root(key))->get_str_value() + "\n";
@@ -390,7 +397,7 @@ void OtherStmtAST::Dump_IR(char* IR, int last_sentence=0) {
 		break;
 	}
 	case 1: {
-		expexist->Dump_IR(IR);
+		expexist->Dump_IR(IR,last_sentence);
 		IRV = expexist->IRV;
 		break;
 	}
@@ -398,13 +405,13 @@ void OtherStmtAST::Dump_IR(char* IR, int last_sentence=0) {
 		std::shared_ptr<SymbolTable> son_table = std::shared_ptr<SymbolTable>(new SymbolTable(now_table));
 		assert(son_table->pre_table == now_table);
 		now_table = son_table;
-		block->Dump_IR(IR);
+		block->Dump_IR(IR,last_sentence);
 		now_table = son_table->pre_table;
 		break;
 	}
 	case 3: {
 		if (expexist->flag == 0) {
-			expexist->Dump_IR(IR);
+			expexist->Dump_IR(IR,last_sentence);
 			IRV = expexist->IRV;
 			std::string temp_IR = "  ret " + IRV.get_IR_value() + "\n\n";
 			strcat(IR, const_cast<char*>(temp_IR.c_str()));
@@ -429,7 +436,7 @@ ExpExistAST::~ExpExistAST() {}
 
 void ExpExistAST::Dump_IR(char* IR, int last_sentence=0) {
 	if (flag == 0) {
-		exp->Dump_IR(IR);
+		exp->Dump_IR(IR,last_sentence);
 		IRV = exp->IRV;
 	}
 }
@@ -443,7 +450,7 @@ int ExpAST::calculate() {
 
 void ExpAST::Dump_IR(char* IR, int last_sentence=0) {
 	if (flag == 0) {
-		lorexp->Dump_IR(IR);
+		lorexp->Dump_IR(IR,last_sentence);
 		IRV = lorexp->IRV;
 	}
 }
@@ -464,7 +471,7 @@ void PrimaryExpAST::Dump_IR(char* IR, int last_sentence=0) {
 
 	switch (flag) {
 	case 0: {
-		exp->Dump_IR(IR);
+		exp->Dump_IR(IR,last_sentence);
 		IRV = exp->IRV;
 		break;
 	}
@@ -473,7 +480,7 @@ void PrimaryExpAST::Dump_IR(char* IR, int last_sentence=0) {
 		break;
 	}
 	case 2: {
-		lval->Dump_IR(IR);
+		lval->Dump_IR(IR,last_sentence);
 		IRV = lval->IRV;
 		break;
 	}
@@ -499,11 +506,11 @@ int UnaryExpAST::calculate() {
 void UnaryExpAST::Dump_IR(char* IR, int last_sentence=0) {
 	// Set_IRV(); // 总是要先set irv
 	if (flag == 0) {
-		primaryexp->Dump_IR(IR);
+		primaryexp->Dump_IR(IR,last_sentence);
 		IRV = primaryexp->IRV;
 	}
 	else if (flag == 1) {
-		unaryexp->Dump_IR(IR);
+		unaryexp->Dump_IR(IR,last_sentence);
 		// "+" 不处理
 		if (unaryop->flag == 0) {
 			IRV = unaryexp->IRV;
@@ -546,12 +553,12 @@ int MulExpAST::calculate() {
 
 void MulExpAST::Dump_IR(char* IR, int last_sentence=0) {
 	if (flag == 0) {
-		unaryexp->Dump_IR(IR);
+		unaryexp->Dump_IR(IR,last_sentence);
 		IRV = unaryexp->IRV;
 	}
 	else if (flag == 1) {
-		mulexp->Dump_IR(IR);
-		unaryexp->Dump_IR(IR);
+		mulexp->Dump_IR(IR,last_sentence);
+		unaryexp->Dump_IR(IR,last_sentence);
 		IRV.set_value(Register, start_point);
 		start_point += 1;
 		std::string temp_IR = "  " + IRV.get_IR_value() + " = ";
@@ -579,12 +586,12 @@ int AddExpAST::calculate() {
 
 void AddExpAST::Dump_IR(char* IR, int last_sentence=0) {
 	if (flag == 0) {
-		mulexp->Dump_IR(IR);
+		mulexp->Dump_IR(IR,last_sentence);
 		IRV = mulexp->IRV;
 	}
 	else if (flag == 1) {
-		addexp->Dump_IR(IR);
-		mulexp->Dump_IR(IR);
+		addexp->Dump_IR(IR,last_sentence);
+		mulexp->Dump_IR(IR,last_sentence);
 		IRV.set_value(Register, start_point);
 		start_point += 1;
 		std::string temp_IR = "  " + IRV.get_IR_value() + " = ";
@@ -619,12 +626,12 @@ int RelExpAST::calculate() {
 
 void RelExpAST::Dump_IR(char* IR, int last_sentence=0) {
 	if (flag == 0) {
-		addexp->Dump_IR(IR);
+		addexp->Dump_IR(IR,last_sentence);
 		IRV = addexp->IRV;
 	}
 	else if (flag == 1) {
-		relexp->Dump_IR(IR);
-		addexp->Dump_IR(IR);
+		relexp->Dump_IR(IR,last_sentence);
+		addexp->Dump_IR(IR,last_sentence);
 		IRV.set_value(Register, start_point);
 		start_point += 1;
 		std::string temp_IR = "  " + IRV.get_IR_value() + " = ";
@@ -660,12 +667,12 @@ int EqExpAST::calculate() {
 
 void EqExpAST::Dump_IR(char* IR, int last_sentence=0) {
 	if (flag == 0) {
-		relexp->Dump_IR(IR);
+		relexp->Dump_IR(IR,last_sentence);
 		IRV = relexp->IRV;
 	}
 	else if (flag == 1) {
-		eqexp->Dump_IR(IR);
-		relexp->Dump_IR(IR);
+		eqexp->Dump_IR(IR,last_sentence);
+		relexp->Dump_IR(IR,last_sentence);
 		IRV.set_value(Register, start_point);
 		start_point += 1;
 		std::string temp_IR = "  " + IRV.get_IR_value() + " = ";
@@ -695,12 +702,12 @@ int LAndExpAST::calculate() {
 
 void LAndExpAST::Dump_IR(char* IR, int last_sentence=0) {
 	if (flag == 0) {
-		eqexp->Dump_IR(IR);
+		eqexp->Dump_IR(IR,last_sentence);
 		IRV = eqexp->IRV;
 	}
 	else if (flag == 1) {
-		landexp->Dump_IR(IR);
-		eqexp->Dump_IR(IR);
+		landexp->Dump_IR(IR,last_sentence);
+		eqexp->Dump_IR(IR,last_sentence);
 		start_point += 2;//多用两个寄存器
 		IRV.set_value(Register, start_point);
 		start_point += 1;
@@ -724,12 +731,12 @@ int LOrExpAST::calculate() {
 
 void LOrExpAST::Dump_IR(char* IR, int last_sentence=0) {
 	if (flag == 0) {
-		landexp->Dump_IR(IR);
+		landexp->Dump_IR(IR,last_sentence);
 		IRV = landexp->IRV;
 	}
 	else if (flag == 1) {
-		lorexp->Dump_IR(IR);
-		landexp->Dump_IR(IR);
+		lorexp->Dump_IR(IR,last_sentence);
+		landexp->Dump_IR(IR,last_sentence);
 		start_point += 1;//要多用一个寄存器
 		IRV.set_value(Register, start_point);
 		start_point += 1;
