@@ -265,7 +265,7 @@ void MatchedStmtAST::Dump_IR(char* IR, int last_sentence=0) {
 	if (flag == 0) {
 		Basic_Block* block_end = now_block->left;
 		if (last_sentence!=false) {
-			block_end = new Basic_Block(now_block>left, NULL);
+			block_end = new Basic_Block(now_block->left, NULL);
 			bb_stack.push_back(block_end);
 		}
 		Basic_Block* block_else = new Basic_Block(block_end, NULL);
@@ -318,7 +318,7 @@ void OpenStmtAST::Dump_IR(char* IR, int last_sentence=0) {
 	if (flag == 0) {
 		Basic_Block* block_end = now_block->left;
 		if (last_sentence!=false) {
-			block_end = new Basic_Block(now_block>left, NULL);
+			block_end = new Basic_Block(now_block->left, NULL);
 			bb_stack.push_back(block_end);
 		}
 		Basic_Block* block_else = new Basic_Block(block_end, NULL);
@@ -352,7 +352,7 @@ void OpenStmtAST::Dump_IR(char* IR, int last_sentence=0) {
 	else if (flag == 1) {
 		Basic_Block* block_end = now_block->left;
 		if (last_sentence!=false) {
-			block_end = new Basic_Block(now_block>left, NULL);
+			block_end = new Basic_Block(now_block->left, NULL);
 			bb_stack.push_back(block_end);
 		}
 		Basic_Block* block_if = new Basic_Block(block_end, NULL);
