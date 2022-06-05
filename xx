@@ -1,0 +1,12 @@
+fun @main(): i32 {
+%block0:
+  br 1, %block2, %block1
+
+%block2:
+  ret 1
+
+%block1:
+  ret 0
+
+}
+

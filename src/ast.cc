@@ -88,9 +88,12 @@ BlockItemVecAST::~BlockItemVecAST() {}
 void BlockItemVecAST::Dump_IR(char* IR, int last_sentence=0) {
 	for (int i = 0; i < itemvec.size(); i++) {
 		int _last = (itemvec.size()-1) == i;
-		// if (now_block==NULL) break;
 		itemvec[i]->Dump_IR(IR, _last);
-		// if (_last&&now_block&&now_block->left){
+		if (now_block&&now_block->dead){
+			delete now_block;
+			now_block=NULL;
+			break;
+		}
 		// 	std::string temp_IR = "  jump " + now_block->left->get_block_name() + "\n\n";
 		// 	strcat(IR, const_cast<char*>(temp_IR.c_str()));
 		// 	delete now_block;
@@ -296,19 +299,31 @@ void MatchedStmtAST::Dump_IR(char* IR, int last_sentence=0) {
 			delete now_block;
 			now_block = NULL;
 		}
-		matchedstmt1->Dump_IR(IR,last_sentence);
-		if (now_block) {
-			temp_IR = "  jump " + block_end->get_block_name() + "\n\n";
-			strcat(IR, const_cast<char*>(temp_IR.c_str()));
-			delete now_block;
-			now_block = NULL;
+		matchedstmt1->Dump_IR(IR,true);
+		if(now_block){
+			if(now_block->dead){
+				delete now_block;
+				now_block=NULL;
+			}
+			else if(now_block->dead==false){
+				temp_IR = "  jump " + block_end->get_block_name() + "\n\n";
+				strcat(IR, const_cast<char*>(temp_IR.c_str()));
+				delete now_block;
+				now_block = NULL;
+			}
 		}
-		matchedstmt2->Dump_IR(IR,last_sentence);
-		if (now_block) {
-			temp_IR = "  jump " + block_end->get_block_name() + "\n\n";
-			strcat(IR, const_cast<char*>(temp_IR.c_str()));
-			delete now_block;
-			now_block = NULL;
+		matchedstmt2->Dump_IR(IR,true);
+		if(now_block){
+			if(now_block->dead){
+				delete now_block;
+				now_block=NULL;
+			}
+			else if(now_block->dead==false){
+				temp_IR = "  jump " + block_end->get_block_name() + "\n\n";
+				strcat(IR, const_cast<char*>(temp_IR.c_str()));
+				delete now_block;
+				now_block = NULL;
+			}
 		}
 	}
 
@@ -345,19 +360,31 @@ void OpenStmtAST::Dump_IR(char* IR, int last_sentence=0) {
 			delete now_block;
 			now_block = NULL;
 		}
-		matchedstmt->Dump_IR(IR,last_sentence);
-		if (now_block) {
-			temp_IR = "  jump " + block_end->get_block_name() + "\n\n";
-			strcat(IR, const_cast<char*>(temp_IR.c_str()));
-			delete now_block;
-			now_block = NULL;
+		matchedstmt->Dump_IR(IR,true);
+		if(now_block){
+			if(now_block->dead){
+				delete now_block;
+				now_block=NULL;
+			}
+			else if(now_block->dead==false){
+				temp_IR = "  jump " + block_end->get_block_name() + "\n\n";
+				strcat(IR, const_cast<char*>(temp_IR.c_str()));
+				delete now_block;
+				now_block = NULL;
+			}
 		}
 		openstmt->Dump_IR(IR,true);
-		if (now_block) {
-			temp_IR = "  jump " + block_end->get_block_name() + "\n\n";
-			strcat(IR, const_cast<char*>(temp_IR.c_str()));
-			delete now_block;
-			now_block = NULL;
+		if(now_block){
+			if(now_block->dead){
+				delete now_block;
+				now_block=NULL;
+			}
+			else if(now_block->dead==false){
+				temp_IR = "  jump " + block_end->get_block_name() + "\n\n";
+				strcat(IR, const_cast<char*>(temp_IR.c_str()));
+				delete now_block;
+				now_block = NULL;
+			}
 		}
 	}
 	else if (flag == 1) {
@@ -376,11 +403,17 @@ void OpenStmtAST::Dump_IR(char* IR, int last_sentence=0) {
 			now_block = NULL;
 		}
 		stmt->Dump_IR(IR,true);
-		if (now_block) {
-			temp_IR = "  jump " + block_end->get_block_name() + "\n\n";
-			strcat(IR, const_cast<char*>(temp_IR.c_str()));
-			delete now_block;
-			now_block = NULL;
+		if(now_block){
+			if(now_block->dead){
+				delete now_block;
+				now_block=NULL;
+			}
+			else if(now_block->dead==false){
+				temp_IR = "  jump " + block_end->get_block_name() + "\n\n";
+				strcat(IR, const_cast<char*>(temp_IR.c_str()));
+				delete now_block;
+				now_block = NULL;
+			}
 		}
 	}
 }
@@ -419,13 +452,11 @@ void OtherStmtAST::Dump_IR(char* IR, int last_sentence=0) {
 			IRV = expexist->IRV;
 			std::string temp_IR = "  ret " + IRV.get_IR_value() + "\n\n";
 			strcat(IR, const_cast<char*>(temp_IR.c_str()));
-			delete now_block;
-			now_block = NULL;
+			now_block->dead=true;
 		}
 		else if (expexist->flag == 1) {
 			strcat(IR, "  ret \n\n");
-			delete now_block;
-			now_block = NULL;
+			now_block->dead=true;
 		}
 		break;
 	}

@@ -137,10 +137,12 @@ public:
 	int block_id;
 	Basic_Block* left;
 	Basic_Block* right;
+	int dead;
 	Basic_Block(Basic_Block*_left,Basic_Block*_right){
 		block_id = block_num++;
 		left = _left;
 		right = _right;
+		dead=false;
 	}
 	void output_into_block(char* IR) {
 		string temp_IR = "\%block" + to_string(block_id) + ":\n";
