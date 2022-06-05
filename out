@@ -1,48 +1,72 @@
 fun @main(): i32 {
 %block0:
   @a_0 = alloc i32
-  store 10, @a_0
+  store 1, @a_0
+  @b_0 = alloc i32
   %0 = load @a_0
-  %1 = gt %0, 1
-  br %1, %block2, %block1
+  %1 = add %0, 2
+  store %1, @b_0
+  %2 = load @a_0
+  %3 = load @b_0
+  %4 = add %2, %3
+  store %4, @b_0
+  %5 = load @b_0
+  %6 = add 2, %5
+  store %6, @b_0
+  %7 = load @b_0
+  %8 = add 2, %7
+  store %8, @b_0
+  @a_1 = alloc i32
+  %9 = load @b_0
+  %10 = load @b_0
+  %11 = add %9, %10
+  store %11, @a_1
+  @a_2 = alloc i32
+  store 3, @a_2
+  %12 = load @b_0
+  %13 = load @a_2
+  %14 = add %12, %13
+  store %14, @b_0
+  %15 = load @b_0
+  %16 = load @a_2
+  %17 = add %15, %16
+  store %17, @b_0
+  @a_3 = alloc i32
+  store 4, @a_3
+  %18 = load @b_0
+  %19 = load @a_3
+  %20 = add %18, %19
+  store %20, @b_0
+  %21 = load @b_0
+  %22 = load @a_3
+  %23 = add %21, %22
+  store %23, @b_0
+  @b_1 = alloc i32
+  store 1, @b_1
+  %24 = load @b_0
+  %25 = load @a_3
+  %26 = add %24, %25
+  store %26, @b_0
+  %27 = load @b_0
+  ret %27
+
+%block1:
+  ret 0
 
 %block2:
-  %2 = load @a_0
-  %3 = gt %2, 2
-  br %3, %block4, %block3
+  %28 = load @b_0
+  %29 = load @a_3
+  %30 = add %28, %29
+  store %30, @b_0
+  @b_2 = alloc i32
+  store 2, @b_2
+  %31 = load @b_2
+  ret %31
 
-%block4:
-  %4 = load @a_0
-  %5 = lt %4, 3
-  br %5, %block7, %block6
-
-%block7:
-  %6 = load @a_0
-  ret %6
-
-%block6:
-  %7 = load @a_0
-  %8 = gt %7, 4
-  br %8, %block9, %block8
-
-%block9:
-  %9 = load @a_0
-  %10 = lt %9, 5
-  br %10, %block12, %block11
-
-%block12:
-  %11 = load @a_0
-  %12 = add %11, 1
-  ret %12
-
-%block11:
-  %13 = load @a_0
-  %14 = add %13, 2
-  ret %14
-
-%block10:
-  %15 = sub 0, 1
-  ret %15
+%block3:
+  @b_3 = alloc i32
+  store 1, @b_3
+  ret 0
 
 }
 

@@ -49,6 +49,9 @@ void FuncDefAST::Dump_IR(char* IR, int last_sentence=0) {
 	strcat(IR, "(): ");
 	func_type->Dump_IR(IR,last_sentence);
 	block->Dump_IR(IR,last_sentence);
+	if (now_block){
+		strcat(IR,"  ret 0\n\n");
+	}
 	IRV = block->IRV;
 	strcat(IR, "}\n");
 }
@@ -85,6 +88,7 @@ BlockItemVecAST::~BlockItemVecAST() {}
 void BlockItemVecAST::Dump_IR(char* IR, int last_sentence=0) {
 	for (int i = 0; i < itemvec.size(); i++) {
 		int _last = (itemvec.size()-1) == i;
+		// if (now_block==NULL) break;
 		itemvec[i]->Dump_IR(IR, _last);
 		// if (_last&&now_block&&now_block->left){
 		// 	std::string temp_IR = "  jump " + now_block->left->get_block_name() + "\n\n";
