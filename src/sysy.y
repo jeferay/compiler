@@ -43,7 +43,7 @@ using namespace std;
 // lexer 返回的所有 token 种类的声明
 // 注意 IDENT 和 INT_CONST 会返回 token 的值, 分别对应 str_val 和 int_val
 // 不指定类型, 不返回对应token值
-%token INT RETURN PLUS MINUS SEQZ MUL DIV MOD LT GT LE GE EQ NEQ LOR LAND CONST IF ELSE  
+%token INT RETURN PLUS MINUS SEQZ MUL DIV MOD LT GT LE GE EQ NEQ LOR LAND CONST IF ELSE WHILE BREAK CONTINUE
 %token <str_val> IDENT
 %token <int_val> INT_CONST
 
@@ -338,12 +338,28 @@ OtherStmt
     otherstmt->flag = 2;
     otherstmt->block = unique_ptr<BaseAST>($1);
     $$ = otherstmt;
-
   }
   | RETURN ExpExist ';' {
     auto otherstmt = new OtherStmtAST();
     otherstmt->flag = 3; 
     otherstmt->expexist = unique_ptr<BaseAST>($2);
+    $$ = otherstmt;
+  }
+  | WHILE '(' Exp ')' Stmt{
+    auto otherstmt = new OtherStmtAST();
+    otherstmt->flag=4;
+    otherstmt->exp =unique_ptr<BaseAST>($3);
+    otherstmt->stmt = unique_ptr<BaseAST>($5);
+    $$ = otherstmt;
+  }
+  | CONTINUE ';'{
+    auto otherstmt = new OtherStmtAST();
+    otherstmt->flag=5;
+    $$ = otherstmt;
+  }
+  | BREAK ';'{
+    auto otherstmt = new OtherStmtAST();
+    otherstmt->flag=6;
     $$ = otherstmt;
   };
 

@@ -137,12 +137,14 @@ public:
 	int block_id;
 	Basic_Block* left;
 	Basic_Block* right;
-	int dead;
-	Basic_Block(Basic_Block*_left,Basic_Block*_right){
+	std::string loop_start;//只记录while循环开始的那个block的名字，因为已经被消亡（在之后的blockitemvec循环中再处理delete）
+	int dead;//表示当前block的语句已经无效（return，break和continue），但是还没有delete的状态
+	Basic_Block(Basic_Block* _left, Basic_Block* _right,std::string _loop_start="") {
 		block_id = block_num++;
 		left = _left;
 		right = _right;
-		dead=false;
+		loop_start = _loop_start;
+		dead = false;
 	}
 	void output_into_block(char* IR) {
 		string temp_IR = "\%block" + to_string(block_id) + ":\n";
@@ -386,7 +388,7 @@ public:
 };
 
 
-// OtherStmtAST::=  Lval '=' Exp ';' | ExpExist ';' | Block | "return" ExpExist ';'
+// openstmt:: if(exp) matchedstmt else openstmt|if(exp)stmt
 class OpenStmtAST :public BaseAST {
 public:
 	std::unique_ptr<BaseAST> exp;
@@ -399,12 +401,14 @@ public:
 	virtual void Dump_IR(char* IR, int last_sentence) override;
 };
 
+// OtherStmtAST::=  Lval '=' Exp ';' | ExpExist ';' | Block | "return" ExpExist ';'| while ( Exp ) Stmt 
 class OtherStmtAST : public BaseAST {
 public:
 	std::unique_ptr<BaseAST> exp;
 	std::unique_ptr<BaseAST> lval;
 	std::unique_ptr<BaseAST> expexist;
 	std::unique_ptr<BaseAST> block;
+	std::unique_ptr<BaseAST> stmt;
 	OtherStmtAST();
 	virtual  ~OtherStmtAST();
 	virtual void Dump_IR(char* IR, int last_sentence) override;
@@ -428,7 +432,7 @@ public:
 	ExpAST();
 	virtual ~ExpAST();
 	int calculate() override;
-	
+
 	virtual void Dump_IR(char* IR, int last_sentence) override;
 };
 
@@ -509,7 +513,6 @@ public:
 	EqExpAST();
 	virtual ~EqExpAST() override;
 	int calculate() override;
-
 
 	virtual void Dump_IR(char* IR, int last_sentence) override;
 };

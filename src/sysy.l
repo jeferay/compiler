@@ -56,6 +56,9 @@ Hexadecimal   0[xX][0-9a-fA-F]+
 "const"         { yylval.str_val = new string(yytext); return CONST; }
 "if"            { yylval.str_val = new string(yytext); return IF; }
 "else"          { yylval.str_val = new string(yytext); return ELSE; }
+"while"         { yylval.str_val = new string(yytext); return WHILE; }
+"break"         { yylval.str_val = new string(yytext); return BREAK; }
+"continue"      { yylval.str_val = new string(yytext); return CONTINUE; }
 
 
 
