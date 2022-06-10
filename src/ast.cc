@@ -279,11 +279,11 @@ void MatchedStmtAST::Dump_IR(char* IR, int last_sentence = 0) {
 	if (flag == 0) {
 		Basic_Block* block_end = now_block->left;
 		if (last_sentence == false) {
-			block_end = new Basic_Block(now_block->left, NULL,now_block->loop_start);
+			block_end = new Basic_Block(now_block->left, NULL,now_block->loop_start,now_block->loop_end);
 			bb_stack.push_back(block_end);
 		}
-		Basic_Block* block_else = new Basic_Block(block_end, NULL,now_block->loop_start);
-		Basic_Block* block_if = new Basic_Block(block_end, NULL,now_block->loop_start);
+		Basic_Block* block_else = new Basic_Block(block_end, NULL,now_block->loop_start,now_block->loop_end);
+		Basic_Block* block_if = new Basic_Block(block_end, NULL,now_block->loop_start,now_block->loop_end);
 		// Basic_Block* block_exp = new Basic_Block(block_if, block_else);
 		bb_stack.push_back(block_else);
 		bb_stack.push_back(block_if);
@@ -344,12 +344,12 @@ void OpenStmtAST::Dump_IR(char* IR, int last_sentence = 0) {
 	if (flag == 0) {
 		Basic_Block* block_end = now_block->left;
 		if (last_sentence == false) {
-			block_end = new Basic_Block(now_block->left, NULL,now_block->loop_start);
+			block_end = new Basic_Block(now_block->left, NULL,now_block->loop_start,now_block->loop_end);
 			bb_stack.push_back(block_end);
 		}
-		Basic_Block* block_else = new Basic_Block(block_end, NULL,now_block->loop_start);
+		Basic_Block* block_else = new Basic_Block(block_end, NULL,now_block->loop_start,now_block->loop_end);
 		bb_stack.push_back(block_else);
-		Basic_Block* block_if = new Basic_Block(block_end, NULL,now_block->loop_start);
+		Basic_Block* block_if = new Basic_Block(block_end, NULL,now_block->loop_start,now_block->loop_end);
 		bb_stack.push_back(block_if);
 		// Basic_Block* block_exp = new Basic_Block(block_if, block_else);
 		exp->Dump_IR(IR, last_sentence);
@@ -390,10 +390,10 @@ void OpenStmtAST::Dump_IR(char* IR, int last_sentence = 0) {
 	else if (flag == 1) {
 		Basic_Block* block_end = now_block->left;
 		if (last_sentence == false) {
-			block_end = new Basic_Block(now_block->left, NULL,now_block->loop_start);
+			block_end = new Basic_Block(now_block->left, NULL,now_block->loop_start,now_block->loop_end);
 			bb_stack.push_back(block_end);
 		}
-		Basic_Block* block_if = new Basic_Block(block_end, NULL,now_block->loop_start);
+		Basic_Block* block_if = new Basic_Block(block_end, NULL,now_block->loop_start,now_block->loop_end);
 		bb_stack.push_back(block_if);
 		exp->Dump_IR(IR, last_sentence);
 		string temp_IR = "  br " + exp->IRV.get_IR_value() + ", " + block_if->get_block_name() + ", " + block_end->get_block_name() + "\n\n";
@@ -463,15 +463,15 @@ void OtherStmtAST::Dump_IR(char* IR, int last_sentence = 0) {
 	case 4: {
 		Basic_Block* block_end = now_block->left;
 		if (last_sentence == false) {
-			block_end = new Basic_Block(now_block->left, NULL,now_block->loop_start);
+			block_end = new Basic_Block(now_block->left, NULL,now_block->loop_start,now_block->loop_end);
 			bb_stack.push_back(block_end);
 		}
-		Basic_Block* block_while = new Basic_Block(block_end, NULL,"");//回到的是当前的循环层
-		bb_stack.push_back(block_while);
-		Basic_Block* block_loop_start = new Basic_Block(NULL, NULL,now_block->loop_start);
+		Basic_Block* block_while = new Basic_Block(block_end, NULL,"",block_end->get_block_name());//回到的是当前的循环层,loop_end设定为同层
+		Basic_Block* block_loop_start = new Basic_Block(block_end, NULL,now_block->loop_start,now_block->loop_end);
 		block_while->loop_start = block_loop_start->get_block_name();
+		bb_stack.push_back(block_while);
 		bb_stack.push_back(block_loop_start);
-		std::string temp_IR = "  jump " + block_loop_start->get_block_name() + "\n\n";
+		std::string temp_IR = "  jump " + block_loop_start->get_block_name() + "\n\n";//now block的最后一句
 		strcat(IR, const_cast<char*>(temp_IR.c_str()));
 		if (now_block) {
 			delete now_block;
@@ -515,7 +515,7 @@ void OtherStmtAST::Dump_IR(char* IR, int last_sentence = 0) {
 	}
 	case 6:{
 		now_block->dead = true;
-		std::string temp_IR = "  jump " + now_block->left->get_block_name() + "\n\n";
+		std::string temp_IR = "  jump " + now_block->loop_end + "\n\n";
 		strcat(IR, const_cast<char*>(temp_IR.c_str()));
 		break;
 	}

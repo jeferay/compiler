@@ -137,13 +137,31 @@ public:
 	int block_id;
 	Basic_Block* left;
 	Basic_Block* right;
-	std::string loop_start;//只记录while循环开始的那个block的名字，因为已经被消亡（在之后的blockitemvec循环中再处理delete）
+	std::string loop_start;//只记录while循环开始的那个block的名字，因为已经被消亡（在之后的blockitemvec循环中再处理delete）4
+	std::string loop_end;
 	int dead;//表示当前block的语句已经无效（return，break和continue），但是还没有delete的状态
-	Basic_Block(Basic_Block* _left, Basic_Block* _right,std::string _loop_start="") {
+	Basic_Block(Basic_Block* _left, Basic_Block* _right) {
+		block_id = block_num++;
+		left = _left;
+		right = _right;
+		loop_start = "";
+		loop_end ="";
+		dead = false;
+	}
+	Basic_Block(Basic_Block* _left, Basic_Block* _right,std::string _loop_start) {
 		block_id = block_num++;
 		left = _left;
 		right = _right;
 		loop_start = _loop_start;
+		loop_end = "";
+		dead = false;
+	}
+	Basic_Block(Basic_Block* _left, Basic_Block* _right,std::string _loop_start, std::string _loop_end) {
+		block_id = block_num++;
+		left = _left;
+		right = _right;
+		loop_start = _loop_start;
+		loop_end = _loop_end;
 		dead = false;
 	}
 	void output_into_block(char* IR) {
