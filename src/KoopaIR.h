@@ -16,6 +16,7 @@ void Visit(const koopa_raw_binary_t &binary, char * RiscV);
 void Visit(const koopa_raw_global_alloc_t &global_alloc, char *RiscV);
 void Visit(const koopa_raw_load_t &load, char*RiscV);
 void Visit(const koopa_raw_store_t &store,char*RiscV);
+void Visit(const koopa_raw_branch_t&branch,char * RiscV);
 
 void Visit(const koopa_raw_value_t &value, char * RiscV);
 int CalMemory(const koopa_raw_value_t &func);
@@ -79,7 +80,9 @@ struct Reg_Stack{
 
 //保存指针的偏移量
 std::map<koopa_raw_value_t,int> func_stack;
+//保存block
 
+std::map<koopa_raw_basic_block_t,int> bb_map;
 // 访问return指令
 void Visit(const koopa_raw_return_t & ret, char * RiscV)
 {
@@ -206,17 +209,54 @@ void Visit(const koopa_raw_store_t &store,char*RiscV){
   else if (kind.tag == KOOPA_RVT_LOAD || kind.tag==KOOPA_RVT_BINARY){
     temp_RiscV = "  lw t0, " + to_string(func_stack[value]) + "(sp)\n";
   }
+
   koopa_raw_value_t dest = store.dest;
-  temp_RiscV +="  sw t0, " + to_string(func_stack[(dest->kind).data.global_alloc.init])+"(sp)\n";
+  temp_RiscV +="  sw t0, " + to_string(func_stack[(dest->kind).data.global_alloc.init])+"(sp)\n";//变量指针在global alloc之中
   strcat(RiscV,const_cast<char*>(temp_RiscV.c_str()));
   return;
 }
 
 
+void Visit(const koopa_raw_branch_t&branch,char * RiscV){
+  string temp_RiscV = "";
+  koopa_raw_value_t cond = branch.cond;
+  koopa_raw_basic_block_t true_bb = branch.true_bb;
+  if (bb_map.find(true_bb)==bb_map.end()){
+    bb_map[true_bb] = bb_map.size();
+  }
+  koopa_raw_basic_block_t false_bb = branch.false_bb;
+  if (bb_map.find(false_bb)==bb_map.end()){
+    bb_map[false_bb] = bb_map.size();
+  }
+  if(cond->kind.tag==KOOPA_RVT_INTEGER){
+    int32_t br_data = cond->kind.data.integer.value;
+    temp_RiscV+="  li t0, " + to_string(br_data) + "\n";
+    temp_RiscV+="  bnez t0, block" + to_string(bb_map[true_bb]) + "\n";
+  }
+  else if (cond->kind.tag==KOOPA_RVT_LOAD||cond->kind.tag==KOOPA_RVT_BINARY){
+    temp_RiscV+="  lw t0, " + to_string(func_stack[cond]) + "(sp)\n";
+    temp_RiscV+="  bnez t0, block" + to_string(bb_map[true_bb]) + "\n";
+  }
+  temp_RiscV+="  j block" + to_string(bb_map[false_bb]) + "\n";
+  strcat(RiscV,const_cast<char*>(temp_RiscV.c_str()));
+  return;
+}
+
+void Visit(const koopa_raw_jump_t & jump, char*RiscV){
+  koopa_raw_basic_block_t target = jump.target;
+  if(bb_map.find(target)==bb_map.end()){
+    bb_map[target] = bb_map.size();
+  }
+  string temp_RiscV =  "  j block" + to_string(bb_map[target]) + "\n";
+  strcat(RiscV,const_cast<char*>(temp_RiscV.c_str()));
+  return;
+}
+
 int CalMemory(const koopa_raw_value_t &value){
   if(value->ty->tag==KOOPA_RTT_UNIT) return 0;
   return 1;
 }
+
 
 // 访问value:指令或者是值
 void Visit(const koopa_raw_value_t &value, char * RiscV)
@@ -235,12 +275,14 @@ void Visit(const koopa_raw_value_t &value, char * RiscV)
       Visit(kind.data.integer,RiscV);
       break;
     case KOOPA_RVT_BINARY:
+    {
       //同样是 返回值分配栈
       func_stack.insert(std::pair<koopa_raw_value_t,int>(value,func_stack.size()*4));
       Visit(kind.data.binary,RiscV); 
       temp_RiscV = "  sw t0, " + to_string(func_stack[value]) + "(sp)\n";//直接以该value作为map key
       strcat(RiscV,const_cast<char*>(temp_RiscV.c_str()));
       break;
+    }
     case KOOPA_RVT_ALLOC:
       Visit(kind.data.global_alloc,RiscV);
       break;//不用输出,但是要分配栈（用map保存）
@@ -248,12 +290,20 @@ void Visit(const koopa_raw_value_t &value, char * RiscV)
       Visit(kind.data.store,RiscV);
       break;
     case KOOPA_RVT_LOAD:
+    {
       func_stack.insert(std::pair<koopa_raw_value_t,int>(value,func_stack.size()*4));
       Visit(kind.data.load,RiscV);
       temp_RiscV = "  sw t0, " + to_string(func_stack[value]) + "(sp)\n";//直接以该value作为map key
       strcat(RiscV,const_cast<char*>(temp_RiscV.c_str()));
       break;
-
+    }
+    case KOOPA_RVT_BRANCH:
+      Visit(kind.data.branch,RiscV);
+      break;
+    case KOOPA_RVT_JUMP:
+      Visit(kind.data.jump,RiscV);
+      break;
+    
   }
 }
 
@@ -267,6 +317,11 @@ void Visit(const koopa_raw_basic_block_t &bb, char * RiscV)
   // 执行一些其他的必要操作
   // ...
   // 访问所有指令
+  if(bb_map.find(bb)==bb_map.end()){
+    bb_map[bb] = bb_map.size();//说明是整个函数第一块 要 插入对应块
+  }
+  string temp_RiscV = "block" + to_string(bb_map[bb]) + ":\n";
+  strcat(RiscV,const_cast<char*>(temp_RiscV.c_str()));
   Visit(bb->insts,RiscV);// slice
 }
 
